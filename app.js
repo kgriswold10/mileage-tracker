@@ -1,172 +1,295 @@
-// === YOUR CONFIG ===
-const API_URL = "https://lively-sunset-250f.kgriswold10.workers.dev/";
-const API_KEY = "AKfycbyCjgHj0DKECwpO7xE4RUe84vW3eSaaTuZmGS1UJpjoWMhSAbe1uY7gZjpVT3fI-xdauw";
-// ===================
+// ========= CONFIG YOU MUST SET =========
+const API_BASE = "https://YOUR_WORKER_SUBDOMAIN.workers.dev"; // Cloudflare Worker URL
+const API_KEY  = "YOUR_LONG_RANDOM_KEY"; // must match Config->ApiKey
 
-let state = { config: null, weeks: [], entries: [] };
+// ========= STATE =========
+let config = null;
+let weeks = [];
+let progressChart = null;
 
-const $ = (id) => document.getElementById(id);
-const fmt = (n) => (Math.round(n * 100) / 100).toFixed(2);
+const el = (id) => document.getElementById(id);
 
-function computeWeeklyTotal() {
-  const total = Number($("walk").value || 0) + Number($("bike").value || 0) + Number($("other").value || 0);
-  $("weeklyTotal").textContent = fmt(total);
+function setStatus(msg, isError=false) {
+  const s = el("status");
+  s.textContent = msg || "";
+  s.className = isError ? "danger" : "muted";
 }
 
-["walk", "bike", "other"].forEach((id) => $(id).addEventListener("input", computeWeeklyTotal));
+function fmt(n) {
+  const x = Number(n || 0);
+  return (Math.round(x * 100) / 100).toFixed(2);
+}
 
-function currentWeekNum() {
-  const today = new Date();
-  for (const w of state.weeks) {
-    const s = new Date(w.startDate);
-    const e = new Date(w.endDate);
-    s.setHours(0,0,0,0);
-    e.setHours(23,59,59,999);
-    if (today >= s && today <= e) return w.weekNum;
+function datesBetween(start, end) {
+  const out = [];
+  const d = new Date(start + "T00:00:00");
+  const e = new Date(end + "T00:00:00");
+  while (d <= e) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    out.push(`${yyyy}-${mm}-${dd}`);
+    d.setDate(d.getDate() + 1);
   }
-  return 1; 
+  return out;
 }
 
-function ytd(person, upToWeek) {
-  return state.entries
-    .filter((e) => e.person === person && e.weekNum <= upToWeek)
-    .reduce((sum, e) => sum + e.weeklyTotal, 0);
+async function apiGet(params) {
+  const url = new URL(API_BASE);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  const r = await fetch(url.toString(), { method: "GET" });
+  return await r.json();
 }
 
-function expected(weekNum) {
-  return (state.config.annualGoal / 52) * weekNum;
-}
-
-function renderDashboard() {
-  const cards = $("cards");
-  cards.innerHTML = "";
-  const wk = currentWeekNum();
-
-  for (const p of state.config.people) {
-    const y = ytd(p, wk);
-    const exp = expected(wk);
-    const diff = exp - y;
-    const pct = y / state.config.annualGoal;
-    const thisWeek = state.entries.find((e) => e.person === p && e.weekNum === wk);
-
-    const div = document.createElement("div");
-    div.className = "card";
-    div.style.minWidth = "250px";
-    div.innerHTML = `
-      <div class="big">${p}</div>
-      <div>YTD <span class="pill">${fmt(y)} mi</span></div>
-      <div>% Goal <span class="pill">${fmt(pct * 100)}%</span></div>
-      <div>${diff >= 0 ? "Behind" : "Ahead"} <span class="pill">${fmt(Math.abs(diff))} mi</span></div>
-      <div>This Week <span class="pill">${fmt(thisWeek ? thisWeek.weeklyTotal : 0)} mi</span></div>
-      <button class="secondary" data-person="${p}" data-week="${wk}">Edit This Week</button>
-    `;
-    div.querySelector("button").addEventListener("click", () => prefill(p, wk));
-    cards.appendChild(div);
-  }
-}
-
-function renderSelectors() {
-  $("person").innerHTML = state.config.people.map((p) => `<option value="${p}">${p}</option>`).join("");
-
-  $("week").innerHTML = state.weeks.map((w) => {
-    const s = new Date(w.startDate).toLocaleDateString();
-    const e = new Date(w.endDate).toLocaleDateString();
-    return `<option value="${w.weekNum}">Week ${w.weekNum} (${s} – ${e})</option>`;
-  }).join("");
-
-  $("week").value = String(currentWeekNum());
-}
-
-function renderTable() {
-  const tbody = $("entriesTable").querySelector("tbody");
-  tbody.innerHTML = "";
-
-  [...state.entries]
-    .sort((a, b) => a.person.localeCompare(b.person) || a.weekNum - b.weekNum)
-    .forEach((e) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${e.person}</td>
-        <td>${e.weekNum}</td>
-        <td>${new Date(e.weekStart).toLocaleDateString()} – ${new Date(e.weekEnd).toLocaleDateString()}</td>
-        <td>${fmt(e.walk)}</td>
-        <td>${fmt(e.bike)}</td>
-        <td>${fmt(e.other)}</td>
-        <td><b>${fmt(e.weeklyTotal)}</b></td>
-        <td>${e.updatedAt ? new Date(e.updatedAt).toLocaleString() : ""}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-}
-
-function prefill(person, week) {
-  $("person").value = person;
-  $("week").value = String(week);
-  loadForm();
-}
-
-function loadForm() {
-  const p = $("person").value;
-  const w = Number($("week").value);
-  const e = state.entries.find((x) => x.person === p && x.weekNum === w);
-  $("walk").value = e ? e.walk : 0;
-  $("bike").value = e ? e.bike : 0;
-  $("other").value = e ? e.other : 0;
-  computeWeeklyTotal();
-}
-
-$("person").addEventListener("change", loadForm);
-$("week").addEventListener("change", loadForm);
-
-async function loadData() {
-  $("err").textContent = "";
-  $("status").textContent = "Loading…";
-
-  const res = await fetch(`${API_URL}?action=data&key=${encodeURIComponent(API_KEY)}`);
-  const json = await res.json();
-
-  if (json.error) throw new Error(json.error);
-
-  state.config = json.config;
-  state.weeks = json.weeks;
-  state.entries = json.entries.filter((e) => e.year === state.config.year);
-
-  $("status").textContent = "Loaded.";
-  renderSelectors();
-  loadForm();
-  renderDashboard();
-  renderTable();
-}
-
-async function saveEntry() {
-  $("err").textContent = "";
-  const payload = {
-    action: "upsert",
-    key: API_KEY,
-    year: state.config.year,
-    person: $("person").value,
-    weekNum: Number($("week").value),
-    walk: Number($("walk").value || 0),
-    bike: Number($("bike").value || 0),
-    other: Number($("other").value || 0),
-  };
-
-  const res = await fetch(API_URL, {
+async function apiPost(form) {
+  const body = new URLSearchParams(form);
+  const r = await fetch(API_BASE, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+  return await r.json();
+}
+
+// ========= INIT =========
+async function init() {
+  // Tabs
+  document.querySelectorAll(".tab").forEach(t => {
+    t.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+      t.classList.add("active");
+      const tab = t.dataset.tab;
+      el("tab-log").style.display = tab === "log" ? "block" : "none";
+      el("tab-progress").style.display = tab === "progress" ? "block" : "none";
+      if (tab === "progress") refreshProgress();
+    });
   });
 
-  const json = await res.json();
-  if (json.error) throw new Error(json.error);
+  // Load config + weeks
+  setStatus("Loading...");
+  const data = await apiGet({ action: "data" });
+  if (!data.ok) {
+    setStatus(data.error || "Failed to load", true);
+    return;
+  }
 
-  await loadData();
+  config = data.config;
+  weeks = data.weeks || [];
+
+  // Populate dropdowns
+  el("yearLabel").textContent = config.Year;
+
+  el("person").innerHTML = config.People.map(p => `<option value="${p}">${p}</option>`).join("");
+  el("category").innerHTML = config.Categories.map(c => `<option value="${c}">${c}</option>`).join("");
+
+  el("week").innerHTML = weeks.map(w =>
+    `<option value="${w.weekNum}">Week ${w.weekNum} (${w.startDate} → ${w.endDate})</option>`
+  ).join("");
+
+  // Default selections
+  el("week").selectedIndex = Math.max(0, weeks.length - 1);
+
+  // Wire events
+  el("week").addEventListener("change", () => {
+    rebuildDaySelect();
+    refreshWeek();
+  });
+  el("person").addEventListener("change", () => {
+    refreshWeek();
+    refreshProgress();
+  });
+
+  el("addBtn").addEventListener("click", addLog);
+
+  rebuildDaySelect();
+  await refreshWeek();
+  await refreshProgress();
+
+  setStatus("");
 }
 
-$("refreshBtn").addEventListener("click", () => loadData().catch((e) => ($("err").textContent = String(e))));
-$("saveBtn").addEventListener("click", () => saveEntry().catch((e) => ($("err").textContent = String(e))));
+function rebuildDaySelect() {
+  const weekNum = parseInt(el("week").value, 10);
+  const w = weeks.find(x => x.weekNum === weekNum);
+  if (!w) return;
 
-loadData().catch((e) => {
-  $("status").textContent = "Not connected.";
-  $("err").textContent = String(e);
-});
+  const days = datesBetween(w.startDate, w.endDate);
+  el("day").innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join("");
+  el("day").value = days[0];
+
+  el("weekRange").textContent = `${w.startDate} → ${w.endDate}`;
+}
+
+async function refreshWeek() {
+  const person = el("person").value;
+  const weekNum = el("week").value;
+
+  setStatus("Loading week...");
+  const data = await apiGet({ action: "week", person, weekNum, year: config.Year });
+
+  if (!data.ok) {
+    setStatus(data.error || "Failed to load week", true);
+    return;
+  }
+
+  el("weekTotal").textContent = fmt(data.weekTotal || 0);
+  el("weekRange").textContent = `${data.week.startDate} → ${data.week.endDate}`;
+
+  renderDailyTotals(data.dailyTotals || {}, data.week.startDate, data.week.endDate);
+  renderLogs(data.logs || []);
+
+  setStatus("");
+}
+
+function renderDailyTotals(dailyTotals, startDate, endDate) {
+  const days = datesBetween(startDate, endDate);
+  const cats = config.Categories;
+
+  let html = `<table>
+    <thead><tr>
+      <th>Date</th>
+      ${cats.map(c => `<th class="right">${c}</th>`).join("")}
+      <th class="right">Day Total</th>
+    </tr></thead><tbody>`;
+
+  for (const d of days) {
+    let dayTotal = 0;
+    const row = dailyTotals[d] || {};
+    html += `<tr><td>${d}</td>`;
+    for (const c of cats) {
+      const v = Number(row[c] || 0);
+      dayTotal += v;
+      html += `<td class="right">${fmt(v)}</td>`;
+    }
+    html += `<td class="right"><b>${fmt(dayTotal)}</b></td></tr>`;
+  }
+
+  html += `</tbody></table>`;
+  el("dailyTotalsWrap").innerHTML = html;
+}
+
+function renderLogs(logs) {
+  if (!logs.length) {
+    el("logsWrap").innerHTML = `<div class="muted">No entries for this week.</div>`;
+    return;
+  }
+
+  let html = `<table>
+    <thead><tr>
+      <th>Date</th>
+      <th>Category</th>
+      <th class="right">Miles</th>
+      <th>Created</th>
+      <th></th>
+    </tr></thead><tbody>`;
+
+  for (const l of logs) {
+    html += `<tr>
+      <td>${l.date}</td>
+      <td>${l.category}</td>
+      <td class="right"><b>${fmt(l.miles)}</b></td>
+      <td class="muted">${l.createdAt}</td>
+      <td class="right">
+        <button data-logid="${l.logId}" class="delBtn">Delete</button>
+      </td>
+    </tr>`;
+  }
+
+  html += `</tbody></table>`;
+  el("logsWrap").innerHTML = html;
+
+  document.querySelectorAll(".delBtn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const logId = btn.dataset.logid;
+      await deleteLog(logId);
+    });
+  });
+}
+
+async function addLog() {
+  const person = el("person").value;
+  const date = el("day").value;
+  const category = el("category").value;
+  const miles = el("miles").value;
+
+  if (!miles || Number(miles) <= 0) {
+    setStatus("Miles must be > 0", true);
+    return;
+  }
+
+  setStatus("Adding...");
+  const res = await apiPost({
+    action: "log",
+    apiKey: API_KEY,
+    year: config.Year,
+    person,
+    date,
+    category,
+    miles
+  });
+
+  if (!res.ok) {
+    setStatus(res.error || "Failed to add", true);
+    return;
+  }
+
+  el("miles").value = "";
+  await refreshWeek();
+  await refreshProgress();
+  setStatus("");
+}
+
+async function deleteLog(logId) {
+  if (!confirm("Delete this entry?")) return;
+
+  setStatus("Deleting...");
+  const res = await apiPost({
+    action: "delete",
+    apiKey: API_KEY,
+    logId
+  });
+
+  if (!res.ok) {
+    setStatus(res.error || "Failed to delete", true);
+    return;
+  }
+
+  await refreshWeek();
+  await refreshProgress();
+  setStatus("");
+}
+
+async function refreshProgress() {
+  if (!config) return;
+  const person = el("person").value;
+
+  const data = await apiGet({ action: "progress", person, year: config.Year });
+  if (!data.ok) return;
+
+  el("progTotal").textContent = fmt(data.total);
+  el("progGoal").textContent = fmt(data.annualGoal);
+  el("progRemaining").textContent = fmt(data.remaining);
+
+  const completed = Number(data.total || 0);
+  const remaining = Math.max(0, Number(data.annualGoal || 0) - completed);
+
+  const ctx = el("progressChart");
+  const chartData = {
+    labels: ["Completed", "Remaining"],
+    datasets: [{
+      data: [completed, remaining]
+    }]
+  };
+
+  if (!progressChart) {
+    progressChart = new Chart(ctx, {
+      type: "pie",
+      data: chartData
+    });
+  } else {
+    progressChart.data = chartData;
+    progressChart.update();
+  }
+}
+
+init();
