@@ -1,5 +1,5 @@
 // === YOUR CONFIG ===
-const API_URL = "https://script.google.com/macros/s/AKfycbyCjgHj0DKECwpO7xE4RUe84vW3eSaaTuZmGS1UJpjoWMhSAbe1uY7gZjpVT3fI-xdauw/exec";
+const API_URL = "https://lively-sunset-250f.kgriswold10.workers.dev/";
 const API_KEY = "AKfycbyCjgHj0DKECwpO7xE4RUe84vW3eSaaTuZmGS1UJpjoWMhSAbe1uY7gZjpVT3fI-xdauw";
 // ===================
 
