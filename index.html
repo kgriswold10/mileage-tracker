@@ -1,0 +1,334 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2575.6">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 12.0px 0.0px; font: 13.0px Courier; color: #0000e3; -webkit-text-stroke: #000000}
+    p.p2 {margin: 0.0px 0.0px 12.0px 0.0px; font: 13.0px Courier; color: #0000e3; -webkit-text-stroke: #000000; min-height: 16.0px}
+    span.s1 {font-kerning: none}
+  </style>
+</head>
+<body>
+<p class="p1"><span class="s1">&lt;!doctype html&gt;</span></p>
+<p class="p1"><span class="s1">&lt;html lang="en"&gt;</span></p>
+<p class="p1"><span class="s1">&lt;head&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;meta charset="utf-8" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;meta name="viewport" content="width=device-width,initial-scale=1" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;title&gt;Mileage Tracker&lt;/title&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;style&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>body {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>margin: 24px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>max-width: 1200px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>h1 { margin-bottom: 6px; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>.muted { color: #666; font-size: 13px; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>.row { display: flex; gap: 16px; flex-wrap: wrap; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>.card {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border: 1px solid #ddd;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border-radius: 12px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>padding: 14px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>background: #fff;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>.big { font-size: 22px; font-weight: 600; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>.pill {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>display: inline-block;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>padding: 3px 10px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border-radius: 999px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border: 1px solid #ddd;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>font-size: 12px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>margin-left: 4px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>label { display:block; margin-top: 10px; font-size: 14px; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>input, select {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>width: 100%;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>padding: 10px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border-radius: 10px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border: 1px solid #ccc;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>margin-top: 4px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>button {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>padding: 10px 14px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border-radius: 10px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border: 1px solid #333;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>background: #111;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>color: white;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>cursor: pointer;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>margin-top: 12px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>button.secondary {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>background: white;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>color: #111;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border-color: #ccc;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>table {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border-collapse: collapse;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>width: 100%;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>margin-top: 14px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>th, td {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>border-bottom: 1px solid #eee;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>padding: 10px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>text-align: left;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>font-size: 14px;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>.error { color: #b00020; margin-top: 10px; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;/style&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/head&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">&lt;body&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;h1&gt;Mileage Tracker&lt;/h1&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div class="muted"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>Goal: 1000 miles/year • Weeks: Mon–Sun • Behind = (Goal ÷ 52) × Week − YTD</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div class="row" style="margin-top: 18px;"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;!-- DASHBOARD --&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div class="card" style="flex: 1;"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;div class="big"&gt;Dashboard&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;div class="muted" id="status"&gt;Loading…&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;div class="row" id="cards" style="margin-top: 12px;"&gt;&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;button class="secondary" onclick="loadData()"&gt;Refresh&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;!-- ENTRY FORM --&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div class="card" style="width: 360px;"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;div class="big"&gt;Enter Week&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;div class="muted"&gt;Shared data stored in Google Drive&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;label&gt;Person&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;select id="person"&gt;&lt;/select&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;label&gt;Week&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;select id="week"&gt;&lt;/select&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;div class="grid2"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;label&gt;Walk&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;input id="walk" type="number" step="0.01" value="0"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;label&gt;Bike&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;input id="bike" type="number" step="0.01" value="0"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;label&gt;Other&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;input id="other" type="number" step="0.01" value="0"&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;div style="margin-top: 10px;"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>Weekly Total:</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;span class="pill" id="weeklyTotal"&gt;0&lt;/span&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;button onclick="saveEntry()"&gt;Save&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;div class="error" id="err"&gt;&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;!-- ENTRIES TABLE --&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div class="card" style="margin-top: 18px;"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div class="big"&gt;Entries (Current Year)&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;table id="entriesTable"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;thead&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;tr&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;th&gt;Person&lt;/th&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;th&gt;Week&lt;/th&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;th&gt;Dates&lt;/th&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;th&gt;Walk&lt;/th&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;th&gt;Bike&lt;/th&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;th&gt;Other&lt;/th&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;th&gt;Total&lt;/th&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;th&gt;Updated&lt;/th&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;/tr&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;/thead&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>&lt;tbody&gt;&lt;/tbody&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;/table&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">&lt;script&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>// ===== CONFIGURED FOR YOUR APPS SCRIPT =====</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>const API_URL =</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>"https://script.google.com/macros/s/AKfycbyCjgHj0DKECwpO7xE4RUe84vW3eSaaTuZmGS1UJpjoWMhSAbe1uY7gZjpVT3fI-xdauw/exec";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>const API_KEY =</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>"AKfycbyCjgHj0DKECwpO7xE4RUe84vW3eSaaTuZmGS1UJpjoWMhSAbe1uY7gZjpVT3fI-xdauw";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>// ==========================================</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>let state = { config: null, weeks: [], entries: [] };</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>const $ = id =&gt; document.getElementById(id);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>const fmt = n =&gt; (Math.round(n * 100) / 100).toFixed(2);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>function computeWeeklyTotal() {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const total =</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>Number($("walk").value || 0) +</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>Number($("bike").value || 0) +</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>Number($("other").value || 0);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>$("weeklyTotal").textContent = fmt(total);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>["walk", "bike", "other"].forEach(id =&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>$(id).addEventListener("input", computeWeeklyTotal)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>function currentWeekNum() {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const today = new Date();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>for (const w of state.weeks) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const s = new Date(w.startDate);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const e = new Date(w.endDate);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>s.setHours(0,0,0,0);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>e.setHours(23,59,59,999);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if (today &gt;= s &amp;&amp; today &lt;= e) return w.weekNum;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>return 1;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>function ytd(person, upToWeek) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>return state.entries</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>.filter(e =&gt; e.person === person &amp;&amp; e.weekNum &lt;= upToWeek)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>.reduce((sum, e) =&gt; sum + e.weeklyTotal, 0);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>function expected(weekNum) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>return (state.config.annualGoal / 52) * weekNum;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>function renderDashboard() {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const cards = $("cards");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>cards.innerHTML = "";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const wk = currentWeekNum();</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>for (const p of state.config.people) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const y = ytd(p, wk);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const exp = expected(wk);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const diff = exp - y;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const pct = y / state.config.annualGoal;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const thisWeek = state.entries.find(e =&gt; e.person === p &amp;&amp; e.weekNum === wk);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const div = document.createElement("div");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>div.className = "card";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>div.style.minWidth = "250px";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>div.innerHTML = `</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;div class="big"&gt;${p}&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;div&gt;YTD &lt;span class="pill"&gt;${fmt(y)} mi&lt;/span&gt;&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;div&gt;% Goal &lt;span class="pill"&gt;${fmt(pct * 100)}%&lt;/span&gt;&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;div&gt;${diff &gt;= 0 ? "Behind" : "Ahead"}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;span class="pill"&gt;${fmt(Math.abs(diff))} mi&lt;/span&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;div&gt;This Week &lt;span class="pill"&gt;${fmt(thisWeek ? thisWeek.weeklyTotal : 0)} mi&lt;/span&gt;&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;button class="secondary" onclick="prefill('${p}', ${wk})"&gt;Edit This Week&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>`;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>cards.appendChild(div);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>function renderSelectors() {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>$("person").innerHTML = state.config.people.map(p =&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>`&lt;option value="${p}"&gt;${p}&lt;/option&gt;`</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>).join("");</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>$("week").innerHTML = state.weeks.map(w =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const s = new Date(w.startDate).toLocaleDateString();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const e = new Date(w.endDate).toLocaleDateString();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>return `&lt;option value="${w.weekNum}"&gt;Week ${w.weekNum} (${s} – ${e})&lt;/option&gt;`;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}).join("");</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>$("week").value = currentWeekNum();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>function renderTable() {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const tbody = $("entriesTable").querySelector("tbody");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>tbody.innerHTML = "";</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>[...state.entries]</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>.sort((a,b) =&gt; a.person.localeCompare(b.person) || a.weekNum - b.weekNum)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>.forEach(e =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const tr = document.createElement("tr");</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>tr.innerHTML = `</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;td&gt;${e.person}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;td&gt;${e.weekNum}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;td&gt;${new Date(e.weekStart).toLocaleDateString()} – ${new Date(e.weekEnd).toLocaleDateString()}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;td&gt;${fmt(e.walk)}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;td&gt;${fmt(e.bike)}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;td&gt;${fmt(e.other)}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;td&gt;&lt;b&gt;${fmt(e.weeklyTotal)}&lt;/b&gt;&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;td&gt;${e.updatedAt ? new Date(e.updatedAt).toLocaleString() : ""}&lt;/td&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>`;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>tbody.appendChild(tr);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>function prefill(person, week) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>$("person").value = person;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>$("week").value = week;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>loadForm();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>function loadForm() {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const p = $("person").value;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const w = Number($("week").value);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>const e = state.entries.find(x =&gt; x.person === p &amp;&amp; x.weekNum === w);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>$("walk").value = e ? e.walk : 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>$("bike").value = e ? e.bike : 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>$("other").value = e ? e.other : 0;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>computeWeeklyTotal();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>$("person").addEventListener("change", loadForm);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>$("week").addEventListener("change", loadForm);</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>async function loadData() {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>try {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>$("status").textContent = "Loading…";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const res = await fetch(`${API_URL}?action=data&amp;key=${API_KEY}`);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const json = await res.json();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>state.config = json.config;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>state.weeks = json.weeks;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>state.entries = json.entries.filter(e =&gt; e.year === state.config.year);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>$("status").textContent = "Loaded.";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderSelectors();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>loadForm();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderDashboard();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>renderTable();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>} catch (err) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>$("status").textContent = "Not connected.";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>$("err").textContent = err;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>async function saveEntry() {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>try {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>$("err").textContent = "";</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const payload = {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>action: "upsert",</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>key: API_KEY,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>year: state.config.year,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>person: $("person").value,</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>weekNum: Number($("week").value),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>walk: Number($("walk").value || 0),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>bike: Number($("bike").value || 0),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>other: Number($("other").value || 0)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>};</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>await fetch(API_URL, {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>method: "POST",</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>headers: {"Content-Type":"application/json"},</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>body: JSON.stringify(payload)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>await loadData();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>} catch (err) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>$("err").textContent = err;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>loadData();</span></p>
+<p class="p1"><span class="s1">&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/body&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/html&gt;</span></p>
+</body>
+</html>
