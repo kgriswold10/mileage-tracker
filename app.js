@@ -4,6 +4,7 @@
    - Render from cache instantly, refresh in background
    - AbortController timeouts to avoid hanging loads
 */
+console.log("NEW APP.JS LOADED 20260131_1");
 
 /** =========================
  *  1) CONFIG - SET THIS
