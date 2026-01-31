@@ -731,6 +731,15 @@ function escapeHtml(s) {
 async function safeText(res) {
   try { return (await res.text()).slice(0, 200); } catch { return ""; }
 }
+ function warmUpPing() {
+  // Non-blocking warmup: helps cold starts on Worker / Apps Script
+  const url = (API_BASE_URL || "").replace(/\/$/, "") + "/ping";
+  fetch(url, { method: "GET", cache: "no-store" }).catch(() => {});
+}
+
+// Alias in case older call exists
+function warmupPing() { return warmUpPing(); }
+
 
 function cryptoRandom() {
   try {
@@ -741,3 +750,4 @@ function cryptoRandom() {
     return Math.random().toString(16).slice(2);
   }
 }
+
