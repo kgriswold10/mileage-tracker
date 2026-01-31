@@ -11,7 +11,7 @@
  *  Put your Cloudflare Worker URL here (preferred).
  *  If you're calling Apps Script directly, use that /exec URL instead.
  */
-const API_BASE_URL = window.API_BASE_URL || "https://YOUR_WORKER_URL_HERE"; // <-- change me
+const API_BASE_URL = window.API_BASE_URL || "https://lively-sunset-250f.kgriswold10.workers.dev/"; // <-- change me
 
 /** Local cache keys */
 const CACHE_KEYS = {
