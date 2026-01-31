@@ -1,18 +1,15 @@
 /* Mileage Tracker - Fast Load + Week->Day input + multi-entry/day cumulative
-   - Warm-up ping
-   - LocalStorage cache (config + weeks + per-week details)
-   - Render from cache instantly, refresh in background
-   - AbortController timeouts to avoid hanging loads
+   FIXED: dropdowns always visible & selectable
+   - DOMContentLoaded boot (safe)
+   - Warm-up ping (safe)
+   - Cache render + background refresh
+   - IMPORTANT FIX: loadFreshBootstrap() now ALWAYS reveals dropdowns
+     even when it returns early due to "fresh enough" cache.
 */
-console.log("NEW APP.JS LOADED 20260131_1");
-alert("NEW APP.JS LOADED 20260131_1");
 
 /** =========================
  *  1) CONFIG - SET THIS
- *  =========================
- *  Put your Cloudflare Worker URL here (preferred).
- *  If you're calling Apps Script directly, use that /exec URL instead.
- */
+ *  ========================= */
 const API_BASE_URL =
   window.API_BASE_URL || "https://lively-sunset-250f.kgriswold10.workers.dev/"; // <-- change me
 
@@ -38,7 +35,6 @@ function mustGet(id) {
 }
 
 function initEls() {
-  // If any of these IDs don't exist in your HTML, init will fail with a clear message.
   els = {
     netPill: mustGet("netPill"),
     statusLine: mustGet("statusLine"),
@@ -78,10 +74,8 @@ const state = {
 };
 
 /** =========================
- *  0) BOOT (DON’T TOUCH)
- *  =========================
- * Ensures DOM exists before we touch document.getElementById.
- */
+ *  0) BOOT
+ *  ========================= */
 window.addEventListener("error", (ev) => {
   console.error("Window error:", ev.error || ev.message);
 });
@@ -92,29 +86,37 @@ window.addEventListener("unhandledrejection", (ev) => {
 document.addEventListener("DOMContentLoaded", () => {
   try {
     initEls();
+
+    // Emergency CSS override: ensure selects are clickable and never hidden by skeleton overlays
+    const style = document.createElement("style");
+    style.textContent = `
+      #personSelect, #weekSelect, #daySelect, #categorySelect {
+        pointer-events: auto !important;
+        position: relative !important;
+        z-index: 99999 !important;
+      }
+      #personSkeleton, #weekSkeleton, #daySkeleton {
+        pointer-events: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    init().catch((e) => {
+      console.error(e);
+      setStatus(`Load failed: ${e?.message || e}`, true);
+      setNetPill("Load failed", "danger");
+      // Always reveal selects even if init fails (lets user interact with cached UI)
+      forceRevealAllSelects();
+    });
   } catch (e) {
     console.error(e);
-    // Can't call setStatus safely if els didn't initialize; use alert as last resort.
     alert(e?.message || String(e));
-    return;
   }
-
-  init().catch((e) => {
-    console.error(e);
-    setStatus(`Load failed: ${e?.message || e}`, true);
-    setNetPill("Load failed", "danger");
-  });
 });
 
 /** =========================
  *  4) INIT
  *  ========================= */
- document.addEventListener("click", (e) => {
-  // shows what element actually receives the click
-  console.log("CLICK TARGET:", e.target?.id || e.target?.className || e.target?.tagName);
-}, true); // capture phase
-
-
 async function init() {
   wireEvents();
 
@@ -140,13 +142,16 @@ async function init() {
   } else {
     setStatus("Loading…");
     setNetPill("Loading", "muted");
+    // Show selects (even if empty) so layout is stable
+    forceRevealAllSelects();
   }
 
   await loadFreshBootstrap();
 
   // Defaults
-  if (!state.selectedPerson && state.config?.people?.length) {
-    state.selectedPerson = state.config.people[0];
+  const cfg = normalizeConfig(state.config);
+  if (!state.selectedPerson && cfg.people.length) {
+    state.selectedPerson = cfg.people[0];
     els.personSelect.value = state.selectedPerson;
   }
   if (!state.selectedWeekId && state.weeks?.length) {
@@ -165,162 +170,45 @@ async function init() {
   setStatus("Ready.");
   setNetPill("Ready", "ok");
 }
-// Emergency CSS override: ensure selects are clickable
-const style = document.createElement("style");
-style.textContent = `
-  #personSelect, #weekSelect, #daySelect, #categorySelect {
-    pointer-events: auto !important;
-    position: relative !important;
-    z-index: 99999 !important;
-  }
-  #personSkeleton, #weekSkeleton, #daySkeleton {
-    display: none !important;
-    pointer-events: none !important;
-  }
-`;
-document.head.appendChild(style);
 
 /** =========================
  *  5) EVENTS
  *  ========================= */
 function wireEvents() {
-  console.log("wireEvents() attaching listeners", {
-    personEl: !!els.personSelect,
-    weekEl: !!els.weekSelect,
-    dayEl: !!els.daySelect,
-    categoryEl: !!els.categorySelect,
-  });
-
-  // Always-fire listeners (Safari-safe)
-  const dbg = (label, el) =>
-    console.log(label, {
-      id: el?.id,
-      value: el?.value,
-      options: el?.options?.length,
-      disabled: el?.disabled,
-    });
-
   // PERSON
-  ["pointerdown", "focus", "click"].forEach((ev) =>
-    els.personSelect.addEventListener(ev, () => dbg(`person ${ev}`, els.personSelect))
-  );
-
-  // `input` fires on selection in many browsers; `change` fires when selection commits
-  els.personSelect.addEventListener("input", async () => {
-    try {
-      dbg("person input", els.personSelect);
-      state.selectedPerson = els.personSelect.value;
-
-      setStatus("Person changed — loading…");
-      setNetPill("Loading", "muted");
-
-      if (state.selectedWeekId) {
-        await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
-      }
-
-      setStatus("Ready.");
-      setNetPill("Ready", "ok");
-    } catch (e) {
-      console.error("person input failed", e);
-      setStatus(`Person change failed: ${e?.message || e}`, true);
-      setNetPill("Failed", "danger");
-    }
-  });
-
   els.personSelect.addEventListener("change", async () => {
-    // keep change too (some browsers only fire change)
-    try {
-      dbg("person change", els.personSelect);
-      state.selectedPerson = els.personSelect.value;
-
-      setStatus("Person changed — loading…");
-      setNetPill("Loading", "muted");
-
-      if (state.selectedWeekId) {
-        await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
-      }
-
-      setStatus("Ready.");
-      setNetPill("Ready", "ok");
-    } catch (e) {
-      console.error("person change failed", e);
-      setStatus(`Person change failed: ${e?.message || e}`, true);
-      setNetPill("Failed", "danger");
+    state.selectedPerson = els.personSelect.value;
+    if (state.selectedWeekId) {
+      await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
     }
   });
 
   // WEEK
-  ["pointerdown", "focus", "click"].forEach((ev) =>
-    els.weekSelect.addEventListener(ev, () => dbg(`week ${ev}`, els.weekSelect))
-  );
-
-  els.weekSelect.addEventListener("input", async () => {
-    try {
-      dbg("week input", els.weekSelect);
-      state.selectedWeekId = els.weekSelect.value;
-
-      setStatus("Week changed — loading…");
-      setNetPill("Loading", "muted");
-
-      syncDayDropdown();
-
-      if (state.selectedWeekId && state.selectedPerson) {
-        await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
-      }
-
-      setStatus("Ready.");
-      setNetPill("Ready", "ok");
-    } catch (e) {
-      console.error("week input failed", e);
-      setStatus(`Week change failed: ${e?.message || e}`, true);
-      setNetPill("Failed", "danger");
-    }
-  });
-
   els.weekSelect.addEventListener("change", async () => {
-    try {
-      dbg("week change", els.weekSelect);
-      state.selectedWeekId = els.weekSelect.value;
-
-      setStatus("Week changed — loading…");
-      setNetPill("Loading", "muted");
-
-      syncDayDropdown();
-
-      if (state.selectedWeekId && state.selectedPerson) {
-        await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
-      }
-
-      setStatus("Ready.");
-      setNetPill("Ready", "ok");
-    } catch (e) {
-      console.error("week change failed", e);
-      setStatus(`Week change failed: ${e?.message || e}`, true);
-      setNetPill("Failed", "danger");
+    state.selectedWeekId = els.weekSelect.value;
+    syncDayDropdown();
+    if (state.selectedWeekId && state.selectedPerson) {
+      await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
     }
   });
 
   // DAY
   els.daySelect.addEventListener("change", () => {
-    dbg("day change", els.daySelect);
     state.selectedDayISO = els.daySelect.value;
     renderTotals();
   });
 
   // CATEGORY
   els.categorySelect.addEventListener("change", () => {
-    dbg("category change", els.categorySelect);
     state.selectedCategory = els.categorySelect.value;
   });
 
   // BUTTONS
   els.addBtn.addEventListener("click", async () => {
-    console.log("add clicked");
     await handleAddEntry();
   });
 
   els.refreshBtn.addEventListener("click", async () => {
-    console.log("refresh clicked");
     await loadFreshBootstrap(true);
     if (state.selectedWeekId && state.selectedPerson) {
       await loadWeekDetails(state.selectedWeekId, state.selectedPerson, true);
@@ -342,7 +230,12 @@ async function loadFreshBootstrap(force = false) {
   const weeksFreshEnough =
     cachedWeeks?.ts && now - cachedWeeks.ts < SOFT_REFRESH_AFTER_MS;
 
-  if (!force && configFreshEnough && weeksFreshEnough) return;
+  // IMPORTANT FIX:
+  // Even when we skip fetching due to fresh cache, we still must reveal selects.
+  if (!force && configFreshEnough && weeksFreshEnough) {
+    forceRevealAllSelects();
+    return;
+  }
 
   setStatus(force ? "Refreshing…" : "Refreshing (background)…");
 
@@ -360,9 +253,7 @@ async function loadFreshBootstrap(force = false) {
     renderWeeks(weeks);
   }
 
-  showSelect(els.personSkeleton, els.personSelect);
-  showSelect(els.weekSkeleton, els.weekSelect);
-  showSelect(els.daySkeleton, els.daySelect);
+  forceRevealAllSelects();
 }
 
 async function loadWeekDetails(weekId, person, force = false) {
@@ -475,28 +366,40 @@ function ensureWeekDetailsForOptimism(weekId) {
 /** =========================
  *  8) RENDER
  *  ========================= */
+function normalizeConfig(cfg) {
+  // Some backends return { config: {...}, weeks: [...] }
+  if (cfg && typeof cfg === "object" && cfg.config && typeof cfg.config === "object") return cfg.config;
+  return cfg || {};
+}
+
+function setSelectOptions(selectEl, values, placeholder) {
+  const arr = Array.isArray(values) ? values : [];
+  if (!arr.length) {
+    selectEl.innerHTML = `<option value="">${escapeHtml(placeholder || "—")}</option>`;
+    return;
+  }
+  selectEl.innerHTML = arr
+    .map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`)
+    .join("");
+}
+
 function renderConfig(config) {
-  const people = Array.isArray(config.people) ? config.people : [];
-  if (people.length) {
-    els.personSelect.innerHTML = people
-      .map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`)
-      .join("");
-    showSelect(els.personSkeleton, els.personSelect);
-    if (!state.selectedPerson) {
-      state.selectedPerson = people[0];
-      els.personSelect.value = state.selectedPerson;
-    }
+  const cfg = normalizeConfig(config);
+
+  // People
+  const people = Array.isArray(cfg.people) ? cfg.people : [];
+  setSelectOptions(els.personSelect, people, "No people yet");
+  showSelect(els.personSkeleton, els.personSelect);
+
+  if (!state.selectedPerson && people.length) {
+    state.selectedPerson = people[0];
+    els.personSelect.value = state.selectedPerson;
   }
 
-  const categories = Array.isArray(config.categories)
-    ? config.categories
-    : ["Walk", "Bike", "Other"];
-
-  els.categorySelect.innerHTML = categories
-    .map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`)
-    .join("");
-
-  if (!state.selectedCategory) {
+  // Categories
+  const categories = Array.isArray(cfg.categories) ? cfg.categories : ["Walk", "Bike", "Other"];
+  setSelectOptions(els.categorySelect, categories, "No categories");
+  if (!state.selectedCategory && categories.length) {
     state.selectedCategory = categories[0];
     els.categorySelect.value = state.selectedCategory;
   }
@@ -504,7 +407,11 @@ function renderConfig(config) {
 
 function renderWeeks(weeks) {
   const safeWeeks = Array.isArray(weeks) ? weeks : [];
-  if (!safeWeeks.length) return;
+  if (!safeWeeks.length) {
+    els.weekSelect.innerHTML = `<option value="">No weeks yet</option>`;
+    showSelect(els.weekSkeleton, els.weekSelect);
+    return;
+  }
 
   els.weekSelect.innerHTML = safeWeeks
     .map((w) => {
@@ -533,10 +440,7 @@ function syncDayDropdown() {
 
   const days = buildWeekDays(w.startDate);
   els.daySelect.innerHTML = days
-    .map((d) => {
-      const label = dayLabel(d);
-      return `<option value="${escapeHtml(d)}">${escapeHtml(label)}</option>`;
-    })
+    .map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(dayLabel(d))}</option>`)
     .join("");
 
   showSelect(els.daySkeleton, els.daySelect);
@@ -578,17 +482,11 @@ function renderEntriesList() {
     .map((e) => {
       const left = `
         <div>
-          <div><strong>${escapeHtml(dayLabel(e.dateISO))}</strong> • ${escapeHtml(
-        e.category || ""
-      )}</div>
-          <div class="small muted">${escapeHtml(e.person || "")} • ${escapeHtml(
-        new Date(e.ts).toLocaleString()
-      )}</div>
+          <div><strong>${escapeHtml(dayLabel(e.dateISO))}</strong> • ${escapeHtml(e.category || "")}</div>
+          <div class="small muted">${escapeHtml(e.person || "")} • ${escapeHtml(new Date(e.ts).toLocaleString())}</div>
         </div>
       `;
-      const right = `<div style="text-align:right; min-width:90px;"><strong>${formatMiles(
-        e.miles
-      )}</strong><div class="small muted">mi</div></div>`;
+      const right = `<div style="text-align:right; min-width:90px;"><strong>${formatMiles(e.miles)}</strong><div class="small muted">mi</div></div>`;
       return `<div class="list-item">${left}${right}</div>`;
     })
     .join("");
@@ -612,6 +510,12 @@ function renderTotals() {
 
   els.weekTotal.textContent = formatMiles(weekTotal);
   els.dayTotal.textContent = formatMiles(dayTotal);
+}
+
+function forceRevealAllSelects() {
+  showSelect(els.personSkeleton, els.personSelect);
+  showSelect(els.weekSkeleton, els.weekSelect);
+  showSelect(els.daySkeleton, els.daySelect);
 }
 
 /** =========================
@@ -732,6 +636,7 @@ function readCache(key) {
  *  11) HELPERS / NORMALIZERS
  *  ========================= */
 function normalizeWeekDetails(details, weekId) {
+  // Accept multiple shapes
   return {
     weekId: details.weekId || weekId,
     startDate: details.startDate || details.start || details.weekStart || null,
@@ -817,16 +722,20 @@ function formatMiles(n) {
 }
 
 function showSelect(skel, sel) {
+  // Make skeleton non-interactive
   if (skel) {
     skel.style.display = "none";
+    skel.style.visibility = "hidden";
     skel.style.pointerEvents = "none";
   }
+  // Make select visible + clickable
   if (sel) {
     sel.style.display = "";
+    sel.style.visibility = "visible";
     sel.disabled = false;
     sel.style.pointerEvents = "auto";
     sel.style.position = "relative";
-    sel.style.zIndex = "2";
+    sel.style.zIndex = "99999";
   }
 }
 
@@ -861,12 +770,8 @@ async function safeText(res) {
 }
 
 /** =========================
- *  12) WARM-UP PING (FIXED)
- *  =========================
- * - Must exist
- * - Must never throw
- * - Tries REST + GAS query styles
- */
+ *  12) WARM-UP PING (SAFE)
+ *  ========================= */
 function warmUpPing() {
   try {
     const base = (API_BASE_URL || "").trim();
@@ -896,11 +801,6 @@ function warmUpPing() {
   } catch {
     // never throw
   }
-}
-
-// Alias in case older call exists
-function warmupPing() {
-  return warmUpPing();
 }
 
 function cryptoRandom() {
