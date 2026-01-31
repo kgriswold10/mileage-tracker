@@ -107,6 +107,12 @@ document.addEventListener("DOMContentLoaded", () => {
 /** =========================
  *  4) INIT
  *  ========================= */
+ document.addEventListener("click", (e) => {
+  // shows what element actually receives the click
+  console.log("CLICK TARGET:", e.target?.id || e.target?.className || e.target?.tagName);
+}, true); // capture phase
+
+
 async function init() {
   wireEvents();
 
