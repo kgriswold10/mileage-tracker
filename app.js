@@ -150,6 +150,7 @@ async function init() {
 
   // Defaults
   const cfg = normalizeConfig(state.config);
+  console.log("cfg =", cfg);
   if (!state.selectedPerson && cfg.people.length) {
     state.selectedPerson = cfg.people[0];
     els.personSelect.value = state.selectedPerson;
