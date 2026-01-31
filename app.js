@@ -20,7 +20,7 @@ const CACHE_KEYS = {
   weekDetailsPrefix: "mt_cache_week_details_v1_", // + weekId
 };
 
-const REQUEST_TIMEOUT_MS = 9000;
+const REQUEST_TIMEOUT_MS = 25000;
 const SOFT_REFRESH_AFTER_MS = 20_000; // allow cached data to show quickly; refresh if older than this
 
 /** =========================
@@ -452,55 +452,143 @@ function renderTotals() {
 }
 
 /** =========================
- *  9) API (with timeout)
- *  ========================= */
+ *  9) API (COMPAT MODE)
+ *  =========================
+ * Supports BOTH styles:
+ *  - REST-ish:   BASE + "/config"
+ *  - GAS-ish:    BASE + "?action=config"
+ *  - Also tries ?route= and ?op=
+ */
+
 async function apiGet(path) {
-  return requestJson("GET", path);
+  // path examples we call: "/config", "/weeks", "/week?weekId=..&person=.."
+  return smartRequest("GET", path, null);
 }
+
 async function apiPost(path, body) {
-  return requestJson("POST", path, body);
+  // path example we call: "/entry"
+  return smartRequest("POST", path, body);
 }
 
-async function requestJson(method, path, body) {
-  const url = API_BASE_URL.replace(/\/$/, "") + path;
+async function smartRequest(method, path, body) {
+  const base = (API_BASE_URL || "").trim();
+  if (!base) throw new Error("API_BASE_URL not set");
 
+  // Normalize what operation is being requested from the path:
+  // "/config" -> "config"
+  // "/weeks"  -> "weeks"
+  // "/ping"   -> "ping"
+  // "/week?weekId=..&person=.." -> "week" + keep query params
+  const { op, query } = parseOpAndQuery(path);
+
+  // Candidate URL styles (try in this order)
+  const candidates = [];
+
+  // 1) REST-ish: BASE + "/config" (only works if Worker supports path routing)
+  candidates.push(joinUrl(base, `/${op}${query ? `?${query}` : ""}`));
+
+  // 2) GAS-ish: BASE + "?action=config"
+  candidates.push(joinUrl(base, `?action=${encodeURIComponent(op)}${query ? `&${query}` : ""}`));
+
+  // 3) GAS-ish: BASE + "?route=config"
+  candidates.push(joinUrl(base, `?route=${encodeURIComponent(op)}${query ? `&${query}` : ""}`));
+
+  // 4) GAS-ish: BASE + "?op=config"
+  candidates.push(joinUrl(base, `?op=${encodeURIComponent(op)}${query ? `&${query}` : ""}`));
+
+  // Try each candidate until one works
+  let lastErr = null;
+
+  for (const url of candidates) {
+    try {
+      if (method === "GET") {
+        return await fetchJsonWithTimeout(url, { method: "GET" });
+      }
+
+      // POST: try JSON first (good for Worker)
+      try {
+        return await fetchJsonWithTimeout(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body ?? {}),
+        });
+      } catch (e1) {
+        // Fallback: urlencoded (often easiest for Apps Script doPost)
+        const form = new URLSearchParams();
+        // If backend uses action/route/op in POST bodies instead of query, include it too
+        form.set("op", op);
+        form.set("action", op);
+        form.set("route", op);
+        form.set("payload", JSON.stringify(body ?? {}));
+
+        return await fetchJsonWithTimeout(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          body: form.toString(),
+        });
+      }
+    } catch (err) {
+      lastErr = err;
+      // keep trying next candidate
+    }
+  }
+
+  // If all candidates failed, show the last error with helpful info
+  throw new Error(
+    `All endpoint styles failed for op="${op}". Last error: ${lastErr?.message || lastErr}`
+  );
+}
+
+function parseOpAndQuery(path) {
+  // path is like "/config" or "/week?weekId=1&person=Kyle"
+  const clean = String(path || "").trim();
+  const noLeading = clean.startsWith("/") ? clean.slice(1) : clean;
+  const [rawOp, rawQuery] = noLeading.split("?");
+  const op = (rawOp || "").trim();
+  const query = (rawQuery || "").trim();
+  return { op, query };
+}
+
+function joinUrl(base, suffix) {
+  // base might already have ?..., so just append if suffix starts with ?
+  if (suffix.startsWith("?")) return base + suffix;
+  return base.replace(/\/$/, "") + suffix;
+}
+
+async function fetchJsonWithTimeout(url, init) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: body ? JSON.stringify(body) : undefined,
+      ...init,
       signal: ctrl.signal,
       cache: "no-store",
     });
 
+    // If it’s a hard HTTP error, throw with body snippet
     if (!res.ok) {
       const text = await safeText(res);
-      throw new Error(`${res.status} ${res.statusText}${text ? ` — ${text}` : ""}`);
+      throw new Error(`${res.status} ${res.statusText}${text ? ` — ${text}` : ""} @ ${url}`);
     }
 
-    // Some endpoints may return empty
     const text = await res.text();
     if (!text) return null;
 
+    // Apps Script sometimes returns plain text; try JSON first
     try {
       return JSON.parse(text);
     } catch {
       return text;
     }
+  } catch (e) {
+    // Bubble up (caller tries next candidate)
+    throw e;
   } finally {
     clearTimeout(t);
   }
 }
 
-/** Warm-up ping to reduce first-hit latency */
-function warmUpPing() {
-  // Don’t await; don’t block UI
-  const url = API_BASE_URL.replace(/\/$/, "") + "/ping";
-  fetch(url, { method: "GET", cache: "no-store" }).catch(() => {});
-}
 
 /** =========================
  *  10) CACHE
