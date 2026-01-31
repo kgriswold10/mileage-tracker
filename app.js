@@ -589,7 +589,6 @@ async function fetchJsonWithTimeout(url, init) {
   }
 }
 
-
 /** =========================
  *  10) CACHE
  *  ========================= */
@@ -731,15 +730,51 @@ function escapeHtml(s) {
 async function safeText(res) {
   try { return (await res.text()).slice(0, 200); } catch { return ""; }
 }
- function warmUpPing() {
-  // Non-blocking warmup: helps cold starts on Worker / Apps Script
-  const url = (API_BASE_URL || "").replace(/\/$/, "") + "/ping";
-  fetch(url, { method: "GET", cache: "no-store" }).catch(() => {});
+
+/** =========================
+ *  12) WARM-UP PING  ✅ FIXED
+ *  =========================
+ * - Must exist (no ReferenceError)
+ * - Must never throw (cannot block init)
+ * - Tries multiple endpoint styles (REST + GAS query params)
+ */
+function warmUpPing() {
+  try {
+    const base = (API_BASE_URL || "").trim();
+    if (!base) return;
+
+    const baseNoSlash = base.replace(/\/$/, "");
+
+    // Try the same "compat" patterns you use elsewhere
+    const urls = [
+      `${baseNoSlash}/ping`,
+      `${baseNoSlash}?action=ping`,
+      `${baseNoSlash}?route=ping`,
+      `${baseNoSlash}?op=ping`,
+      // Fallback: hit root to wake cold starts even if ping isn't implemented
+      `${baseNoSlash}/`,
+    ];
+
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000); // short warmup timeout
+
+    // fire-and-forget; ignore failures
+    Promise.race(
+      urls.map((u) =>
+        fetch(u, {
+          method: "GET",
+          cache: "no-store",
+          signal: ctrl.signal,
+        }).catch(() => null)
+      )
+    ).finally(() => clearTimeout(t));
+  } catch {
+    // never throw from warmup
+  }
 }
 
-// Alias in case older call exists
+// Alias in case older call exists somewhere
 function warmupPing() { return warmUpPing(); }
-
 
 function cryptoRandom() {
   try {
@@ -750,4 +785,3 @@ function cryptoRandom() {
     return Math.random().toString(16).slice(2);
   }
 }
-
