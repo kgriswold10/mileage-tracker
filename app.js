@@ -393,7 +393,7 @@ async function handleAddEntry() {
   els.milesInput.value = "";
 
   try {
-    const res = await apiPost("/entry", entry);
+    const res = await apiPost("/addEntry", entry);
     unwrapOk(res);
     await loadWeekDetails(weekId, person, true);
     setStatus("Entry added.");
