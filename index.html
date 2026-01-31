@@ -5,80 +5,128 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Mileage Tracker</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin: 24px; max-width: 1200px; }
-    h1 { margin-bottom: 6px; }
-    .muted { color: #666; font-size: 13px; }
-    .row { display: flex; gap: 16px; flex-wrap: wrap; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; background: #fff; }
-    .big { font-size: 22px; font-weight: 600; }
-    .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; border: 1px solid #ddd; font-size: 12px; margin-left: 4px; }
-    label { display:block; margin-top: 10px; font-size: 14px; }
-    input, select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ccc; margin-top: 4px; box-sizing: border-box; }
-    button { padding: 10px 14px; border-radius: 10px; border: 1px solid #333; background: #111; color: white; cursor: pointer; margin-top: 12px; }
-    button.secondary { background: white; color: #111; border-color: #ccc; }
-    table { border-collapse: collapse; width: 100%; margin-top: 14px; }
-    th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; font-size: 14px; }
-    .error { color: #b00020; margin-top: 10px; white-space: pre-wrap; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; background: #0b0f14; color: #e6edf3; }
+    header { padding: 14px 16px; border-bottom: 1px solid #1f2a37; display:flex; align-items:center; gap:12px;}
+    header h1 { margin: 0; font-size: 16px; letter-spacing: .2px; }
+    main { padding: 16px; max-width: 980px; margin: 0 auto; }
+    .row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; margin-bottom: 12px; }
+    .card { background: #0f1620; border: 1px solid #1f2a37; border-radius: 12px; padding: 12px; }
+    label { display:block; font-size: 12px; opacity:.9; margin-bottom: 6px; }
+    select, input, button {
+      width: 100%;
+      padding: 10px 10px;
+      border-radius: 10px;
+      border: 1px solid #2b3a4f;
+      background: #0b1220;
+      color: #e6edf3;
+      outline: none;
+    }
+    button { cursor:pointer; border: 1px solid #2b3a4f; background:#132033; }
+    button:hover { background:#162641; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .col-3 { grid-column: span 3; }
+    .col-4 { grid-column: span 4; }
+    .col-6 { grid-column: span 6; }
+    .col-8 { grid-column: span 8; }
+    .col-12 { grid-column: span 12; }
+
+    .status { font-size: 12px; opacity:.85; }
+    .pill { display:inline-block; padding: 6px 10px; border:1px solid #2b3a4f; border-radius: 999px; background:#0b1220; font-size:12px; }
+    .totals { display:flex; gap:10px; flex-wrap:wrap; }
+    .muted { opacity:.75; }
+    .list { margin-top: 8px; }
+    .list-item { padding: 10px; border: 1px solid #1f2a37; border-radius: 10px; background:#0b1220; display:flex; justify-content:space-between; gap: 10px; }
+    .list-item + .list-item { margin-top: 8px; }
+    .small { font-size: 12px; opacity:.85; }
+    .danger { color: #ffb4b4; }
+    .ok { color: #b7ffcc; }
+    .skeleton {
+      background: linear-gradient(90deg, #0b1220 25%, #101b2c 37%, #0b1220 63%);
+      background-size: 400% 100%;
+      animation: shimmer 1.2s ease-in-out infinite;
+      border-radius: 10px;
+      height: 38px;
+      border: 1px solid #1f2a37;
+    }
+    @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+    @media (max-width: 860px) {
+      .col-3, .col-4, .col-6, .col-8 { grid-column: span 12; }
+    }
   </style>
 </head>
 <body>
-  <h1>Mileage Tracker</h1>
-  <div class="muted">Goal: 1000 miles/year • Weeks: Mon–Sun • Behind = (Goal ÷ 52) × Week − YTD</div>
+  <header>
+    <h1>Mileage Tracker</h1>
+    <span id="netPill" class="pill muted">Starting…</span>
+  </header>
 
-  <div class="row" style="margin-top: 18px;">
-    <div class="card" style="flex: 1;">
-      <div class="big">Dashboard</div>
-      <div class="muted" id="status">Loading…</div>
-      <div class="row" id="cards" style="margin-top: 12px;"></div>
-      <button class="secondary" id="refreshBtn">Refresh</button>
+  <main>
+    <div class="row">
+      <div class="card col-12">
+        <div class="totals">
+          <span class="pill">Week Total: <strong id="weekTotal">0</strong></span>
+          <span class="pill">Day Total: <strong id="dayTotal">0</strong></span>
+          <span class="pill muted" id="weekRange">Week: —</span>
+        </div>
+        <div class="status" id="statusLine" style="margin-top:10px;">Loading…</div>
+      </div>
     </div>
 
-    <div class="card" style="width: 360px;">
-      <div class="big">Enter Week</div>
-      <div class="muted">Shared data stored in Google Drive</div>
-
-      <label>Person</label>
-      <select id="person"></select>
-
-      <label>Week</label>
-      <select id="week"></select>
-
-      <div class="grid2">
-        <div>
-          <label>Walk</label>
-          <input id="walk" type="number" step="0.01" value="0">
-        </div>
-        <div>
-          <label>Bike</label>
-          <input id="bike" type="number" step="0.01" value="0">
-        </div>
+    <div class="row">
+      <div class="card col-4">
+        <label for="personSelect">Person</label>
+        <div id="personSkeleton" class="skeleton"></div>
+        <select id="personSelect" style="display:none;"></select>
       </div>
 
-      <label>Other</label>
-      <input id="other" type="number" step="0.01" value="0">
-
-      <div style="margin-top: 10px;">
-        Weekly Total: <span class="pill" id="weeklyTotal">0</span>
+      <div class="card col-4">
+        <label for="weekSelect">Week</label>
+        <div id="weekSkeleton" class="skeleton"></div>
+        <select id="weekSelect" style="display:none;"></select>
       </div>
 
-      <button id="saveBtn">Save</button>
-      <div class="error" id="err"></div>
+      <div class="card col-4">
+        <label for="daySelect">Day (within selected week)</label>
+        <div id="daySkeleton" class="skeleton"></div>
+        <select id="daySelect" style="display:none;"></select>
+      </div>
     </div>
-  </div>
 
-  <div class="card" style="margin-top: 18px;">
-    <div class="big">Entries (Current Year)</div>
-    <table id="entriesTable">
-      <thead>
-        <tr>
-          <th>Person</th><th>Week</th><th>Dates</th><th>Walk</th><th>Bike</th><th>Other</th><th>Total</th><th>Updated</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+    <div class="row">
+      <div class="card col-4">
+        <label for="categorySelect">Category</label>
+        <select id="categorySelect"></select>
+      </div>
 
-  <script src="./app.js"></script>
+      <div class="card col-4">
+        <label for="milesInput">Miles</label>
+        <input id="milesInput" inputmode="decimal" placeholder="e.g., 2.5" />
+      </div>
+
+      <div class="card col-4">
+        <label>&nbsp;</label>
+        <button id="addBtn">Add Entry</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="card col-12">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div>
+            <div style="font-weight:600;">Entries for selected week</div>
+            <div class="small muted">Multiple adds on the same day are allowed and will sum automatically.</div>
+          </div>
+          <button id="refreshBtn" style="max-width:220px;">Refresh</button>
+        </div>
+
+        <div id="entriesList" class="list"></div>
+      </div>
+    </div>
+  </main>
+
+  <script defer src="./app.js"></script>
 </body>
 </html>
+
