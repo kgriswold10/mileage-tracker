@@ -11,63 +11,97 @@
  *  Put your Cloudflare Worker URL here (preferred).
  *  If you're calling Apps Script directly, use that /exec URL instead.
  */
-const API_BASE_URL = window.API_BASE_URL || "https://lively-sunset-250f.kgriswold10.workers.dev/"; // <-- change me
+const API_BASE_URL =
+  window.API_BASE_URL || "https://lively-sunset-250f.kgriswold10.workers.dev/"; // <-- change me
 
 /** Local cache keys */
 const CACHE_KEYS = {
   config: "mt_cache_config_v1",
   weeks: "mt_cache_weeks_v1",
-  weekDetailsPrefix: "mt_cache_week_details_v1_", // + weekId
+  weekDetailsPrefix: "mt_cache_week_details_v1_", // + weekId + "_" + person
 };
 
 const REQUEST_TIMEOUT_MS = 25000;
-const SOFT_REFRESH_AFTER_MS = 20_000; // allow cached data to show quickly; refresh if older than this
+const SOFT_REFRESH_AFTER_MS = 20_000;
 
 /** =========================
- *  2) DOM
+ *  2) DOM (initialized after DOMContentLoaded)
  *  ========================= */
-const els = {
-  netPill: document.getElementById("netPill"),
-  statusLine: document.getElementById("statusLine"),
+let els = null;
 
-  personSkeleton: document.getElementById("personSkeleton"),
-  weekSkeleton: document.getElementById("weekSkeleton"),
-  daySkeleton: document.getElementById("daySkeleton"),
+function mustGet(id) {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`Missing required DOM element: #${id}`);
+  return el;
+}
 
-  personSelect: document.getElementById("personSelect"),
-  weekSelect: document.getElementById("weekSelect"),
-  daySelect: document.getElementById("daySelect"),
+function initEls() {
+  // If any of these IDs don't exist in your HTML, init will fail with a clear message.
+  els = {
+    netPill: mustGet("netPill"),
+    statusLine: mustGet("statusLine"),
 
-  categorySelect: document.getElementById("categorySelect"),
-  milesInput: document.getElementById("milesInput"),
-  addBtn: document.getElementById("addBtn"),
-  refreshBtn: document.getElementById("refreshBtn"),
+    personSkeleton: document.getElementById("personSkeleton"),
+    weekSkeleton: document.getElementById("weekSkeleton"),
+    daySkeleton: document.getElementById("daySkeleton"),
 
-  weekTotal: document.getElementById("weekTotal"),
-  dayTotal: document.getElementById("dayTotal"),
-  weekRange: document.getElementById("weekRange"),
+    personSelect: mustGet("personSelect"),
+    weekSelect: mustGet("weekSelect"),
+    daySelect: mustGet("daySelect"),
 
-  entriesList: document.getElementById("entriesList"),
-};
+    categorySelect: mustGet("categorySelect"),
+    milesInput: mustGet("milesInput"),
+    addBtn: mustGet("addBtn"),
+    refreshBtn: mustGet("refreshBtn"),
+
+    weekTotal: mustGet("weekTotal"),
+    dayTotal: mustGet("dayTotal"),
+    weekRange: mustGet("weekRange"),
+
+    entriesList: mustGet("entriesList"),
+  };
+}
 
 /** =========================
  *  3) STATE
  *  ========================= */
 const state = {
   config: null,
-  weeks: [], // list
+  weeks: [],
   selectedPerson: null,
   selectedWeekId: null,
   selectedDayISO: null,
   selectedCategory: null,
-
-  weekDetails: null, // { weekId, startDate, endDate, entries: [...] }
+  weekDetails: null,
 };
 
-init().catch((e) => {
-  console.error(e);
-  setStatus(`Load failed: ${e?.message || e}`, true);
-  setNetPill("Load failed", "danger");
+/** =========================
+ *  0) BOOT (DON’T TOUCH)
+ *  =========================
+ * Ensures DOM exists before we touch document.getElementById.
+ */
+window.addEventListener("error", (ev) => {
+  console.error("Window error:", ev.error || ev.message);
+});
+window.addEventListener("unhandledrejection", (ev) => {
+  console.error("Unhandled rejection:", ev.reason);
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    initEls();
+  } catch (e) {
+    console.error(e);
+    // Can't call setStatus safely if els didn't initialize; use alert as last resort.
+    alert(e?.message || String(e));
+    return;
+  }
+
+  init().catch((e) => {
+    console.error(e);
+    setStatus(`Load failed: ${e?.message || e}`, true);
+    setNetPill("Load failed", "danger");
+  });
 });
 
 /** =========================
@@ -92,7 +126,6 @@ async function init() {
     renderWeeks(state.weeks);
   }
 
-  // If we had cache, show “loaded from cache” quickly
   if (cachedConfig?.data || cachedWeeks?.data) {
     setStatus("Loaded from cache — refreshing…");
     setNetPill("Cached", "ok");
@@ -101,10 +134,9 @@ async function init() {
     setNetPill("Loading", "muted");
   }
 
-  // Always fetch fresh in background (with timeout)
   await loadFreshBootstrap();
 
-  // Select defaults if none selected yet
+  // Defaults
   if (!state.selectedPerson && state.config?.people?.length) {
     state.selectedPerson = state.config.people[0];
     els.personSelect.value = state.selectedPerson;
@@ -117,7 +149,7 @@ async function init() {
   // Populate day dropdown based on selected week
   syncDayDropdown();
 
-  // Load week details on first meaningful selection
+  // Load week details
   if (state.selectedWeekId && state.selectedPerson) {
     await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
   }
@@ -130,24 +162,58 @@ async function init() {
  *  5) EVENTS
  *  ========================= */
 function wireEvents() {
+  // Defensive: ensure selects exist & are interactive
+  els.personSelect.disabled = false;
+  els.weekSelect.disabled = false;
+  els.daySelect.disabled = false;
+
   els.personSelect.addEventListener("change", async () => {
-    state.selectedPerson = els.personSelect.value;
-    // week details depends on person (if your backend filters); reload
-    if (state.selectedWeekId) {
-      await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
+    try {
+      state.selectedPerson = els.personSelect.value;
+      console.log("person change fired:", state.selectedPerson);
+
+      setStatus("Person changed — loading…");
+      setNetPill("Loading", "muted");
+
+      if (state.selectedWeekId) {
+        await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
+      }
+
+      setStatus("Ready.");
+      setNetPill("Ready", "ok");
+    } catch (e) {
+      console.error("person change failed", e);
+      setStatus(`Person change failed: ${e?.message || e}`, true);
+      setNetPill("Failed", "danger");
     }
   });
 
   els.weekSelect.addEventListener("change", async () => {
-    state.selectedWeekId = els.weekSelect.value;
-    syncDayDropdown();
-    if (state.selectedWeekId && state.selectedPerson) {
-      await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
+    try {
+      state.selectedWeekId = els.weekSelect.value;
+      console.log("week change fired:", state.selectedWeekId);
+
+      setStatus("Week changed — loading…");
+      setNetPill("Loading", "muted");
+
+      syncDayDropdown();
+
+      if (state.selectedWeekId && state.selectedPerson) {
+        await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
+      }
+
+      setStatus("Ready.");
+      setNetPill("Ready", "ok");
+    } catch (e) {
+      console.error("week change failed", e);
+      setStatus(`Week change failed: ${e?.message || e}`, true);
+      setNetPill("Failed", "danger");
     }
   });
 
   els.daySelect.addEventListener("change", () => {
     state.selectedDayISO = els.daySelect.value;
+    console.log("day change fired:", state.selectedDayISO);
     renderTotals();
   });
 
@@ -181,18 +247,12 @@ async function loadFreshBootstrap(force = false) {
   const weeksFreshEnough =
     cachedWeeks?.ts && now - cachedWeeks.ts < SOFT_REFRESH_AFTER_MS;
 
-  // If not forcing and cache is fresh enough, skip fetch (still already rendered)
   if (!force && configFreshEnough && weeksFreshEnough) return;
 
   setStatus(force ? "Refreshing…" : "Refreshing (background)…");
 
-  // Fetch both in parallel
-  const [config, weeks] = await Promise.all([
-    apiGet("/config"),
-    apiGet("/weeks"),
-  ]);
+  const [config, weeks] = await Promise.all([apiGet("/config"), apiGet("/weeks")]);
 
-  // Update state + cache + UI
   if (config) {
     state.config = config;
     writeCache(CACHE_KEYS.config, config);
@@ -205,7 +265,6 @@ async function loadFreshBootstrap(force = false) {
     renderWeeks(weeks);
   }
 
-  // Hide skeletons if now available
   showSelect(els.personSkeleton, els.personSelect);
   showSelect(els.weekSkeleton, els.weekSelect);
   showSelect(els.daySkeleton, els.daySelect);
@@ -215,7 +274,6 @@ async function loadWeekDetails(weekId, person, force = false) {
   const cacheKey = CACHE_KEYS.weekDetailsPrefix + weekId + "_" + person;
   const cached = readCache(cacheKey);
 
-  // Render cached immediately
   if (!force && cached?.data) {
     state.weekDetails = normalizeWeekDetails(cached.data, weekId);
     renderWeekDetails();
@@ -224,7 +282,6 @@ async function loadWeekDetails(weekId, person, force = false) {
     setStatus("Loading week details…");
   }
 
-  // Fetch fresh (unless cache is fresh and not forced)
   const now = Date.now();
   const freshEnough = cached?.ts && now - cached.ts < SOFT_REFRESH_AFTER_MS;
   if (!force && freshEnough) {
@@ -233,7 +290,9 @@ async function loadWeekDetails(weekId, person, force = false) {
   }
 
   try {
-    const details = await apiGet(`/week?weekId=${encodeURIComponent(weekId)}&person=${encodeURIComponent(person)}`);
+    const details = await apiGet(
+      `/week?weekId=${encodeURIComponent(weekId)}&person=${encodeURIComponent(person)}`
+    );
     if (details) {
       state.weekDetails = normalizeWeekDetails(details, weekId);
       writeCache(cacheKey, state.weekDetails);
@@ -241,7 +300,6 @@ async function loadWeekDetails(weekId, person, force = false) {
       setStatus("Ready.");
     }
   } catch (e) {
-    // If we had cached, keep going; otherwise show error
     if (!cached?.data) {
       setStatus(`Week load failed: ${e?.message || e}`, true);
       setNetPill("Offline?", "danger");
@@ -276,7 +334,6 @@ async function handleAddEntry() {
   els.addBtn.disabled = true;
   setStatus("Adding entry…");
 
-  // Optimistic UI update
   const entry = {
     id: `local_${cryptoRandom()}`,
     person,
@@ -292,15 +349,12 @@ async function handleAddEntry() {
   renderWeekDetails();
   els.milesInput.value = "";
 
-  // Persist to backend
   try {
     await apiPost("/entry", entry);
-    // After successful add, refresh week details (fast)
     await loadWeekDetails(weekId, person, true);
     setStatus("Entry added.");
     setNetPill("Synced", "ok");
   } catch (e) {
-    // Revert optimistic entry if post fails
     state.weekDetails.entries = state.weekDetails.entries.filter((x) => x.id !== entry.id);
     renderWeekDetails();
 
@@ -314,7 +368,6 @@ async function handleAddEntry() {
 function ensureWeekDetailsForOptimism(weekId) {
   if (state.weekDetails && state.weekDetails.weekId === weekId) return;
 
-  // Create minimal structure if missing
   const weekMeta = (state.weeks || []).find((w) => w.weekId === weekId) || {};
   state.weekDetails = {
     weekId,
@@ -328,10 +381,11 @@ function ensureWeekDetailsForOptimism(weekId) {
  *  8) RENDER
  *  ========================= */
 function renderConfig(config) {
-  // People
   const people = Array.isArray(config.people) ? config.people : [];
   if (people.length) {
-    els.personSelect.innerHTML = people.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
+    els.personSelect.innerHTML = people
+      .map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`)
+      .join("");
     showSelect(els.personSkeleton, els.personSelect);
     if (!state.selectedPerson) {
       state.selectedPerson = people[0];
@@ -339,9 +393,14 @@ function renderConfig(config) {
     }
   }
 
-  // Categories
-  const categories = Array.isArray(config.categories) ? config.categories : ["Walk", "Bike", "Other"];
-  els.categorySelect.innerHTML = categories.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  const categories = Array.isArray(config.categories)
+    ? config.categories
+    : ["Walk", "Bike", "Other"];
+
+  els.categorySelect.innerHTML = categories
+    .map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`)
+    .join("");
+
   if (!state.selectedCategory) {
     state.selectedCategory = categories[0];
     els.categorySelect.value = state.selectedCategory;
@@ -349,14 +408,15 @@ function renderConfig(config) {
 }
 
 function renderWeeks(weeks) {
-  // Expect: [{weekId, weekNum, startDate, endDate}, ...]
   const safeWeeks = Array.isArray(weeks) ? weeks : [];
   if (!safeWeeks.length) return;
 
-  els.weekSelect.innerHTML = safeWeeks.map((w) => {
-    const label = weekLabel(w);
-    return `<option value="${escapeHtml(w.weekId)}">${escapeHtml(label)}</option>`;
-  }).join("");
+  els.weekSelect.innerHTML = safeWeeks
+    .map((w) => {
+      const label = weekLabel(w);
+      return `<option value="${escapeHtml(w.weekId)}">${escapeHtml(label)}</option>`;
+    })
+    .join("");
 
   showSelect(els.weekSkeleton, els.weekSelect);
 
@@ -376,15 +436,16 @@ function syncDayDropdown() {
     return;
   }
 
-  const days = buildWeekDays(w.startDate); // 7 days ISO
-  els.daySelect.innerHTML = days.map((d) => {
-    const label = dayLabel(d);
-    return `<option value="${escapeHtml(d)}">${escapeHtml(label)}</option>`;
-  }).join("");
+  const days = buildWeekDays(w.startDate);
+  els.daySelect.innerHTML = days
+    .map((d) => {
+      const label = dayLabel(d);
+      return `<option value="${escapeHtml(d)}">${escapeHtml(label)}</option>`;
+    })
+    .join("");
 
   showSelect(els.daySkeleton, els.daySelect);
 
-  // Keep current selection if possible
   if (!state.selectedDayISO || !days.includes(state.selectedDayISO)) {
     state.selectedDayISO = days[0];
     els.daySelect.value = state.selectedDayISO;
@@ -392,7 +453,6 @@ function syncDayDropdown() {
     els.daySelect.value = state.selectedDayISO;
   }
 
-  // Week range pill
   const start = new Date(w.startDate);
   const end = new Date(days[6] + "T00:00:00");
   els.weekRange.textContent = `Week: ${formatShort(start)} – ${formatShort(end)}`;
@@ -419,16 +479,24 @@ function renderEntriesList() {
     return;
   }
 
-  els.entriesList.innerHTML = entries.map((e) => {
-    const left = `
-      <div>
-        <div><strong>${escapeHtml(dayLabel(e.dateISO))}</strong> • ${escapeHtml(e.category || "")}</div>
-        <div class="small muted">${escapeHtml(e.person || "")} • ${escapeHtml(new Date(e.ts).toLocaleString())}</div>
-      </div>
-    `;
-    const right = `<div style="text-align:right; min-width:90px;"><strong>${formatMiles(e.miles)}</strong><div class="small muted">mi</div></div>`;
-    return `<div class="list-item">${left}${right}</div>`;
-  }).join("");
+  els.entriesList.innerHTML = entries
+    .map((e) => {
+      const left = `
+        <div>
+          <div><strong>${escapeHtml(dayLabel(e.dateISO))}</strong> • ${escapeHtml(
+        e.category || ""
+      )}</div>
+          <div class="small muted">${escapeHtml(e.person || "")} • ${escapeHtml(
+        new Date(e.ts).toLocaleString()
+      )}</div>
+        </div>
+      `;
+      const right = `<div style="text-align:right; min-width:90px;"><strong>${formatMiles(
+        e.miles
+      )}</strong><div class="small muted">mi</div></div>`;
+      return `<div class="list-item">${left}${right}</div>`;
+    })
+    .join("");
 }
 
 function renderTotals() {
@@ -453,20 +521,11 @@ function renderTotals() {
 
 /** =========================
  *  9) API (COMPAT MODE)
- *  =========================
- * Supports BOTH styles:
- *  - REST-ish:   BASE + "/config"
- *  - GAS-ish:    BASE + "?action=config"
- *  - Also tries ?route= and ?op=
- */
-
+ *  ========================= */
 async function apiGet(path) {
-  // path examples we call: "/config", "/weeks", "/week?weekId=..&person=.."
   return smartRequest("GET", path, null);
 }
-
 async function apiPost(path, body) {
-  // path example we call: "/entry"
   return smartRequest("POST", path, body);
 }
 
@@ -474,29 +533,14 @@ async function smartRequest(method, path, body) {
   const base = (API_BASE_URL || "").trim();
   if (!base) throw new Error("API_BASE_URL not set");
 
-  // Normalize what operation is being requested from the path:
-  // "/config" -> "config"
-  // "/weeks"  -> "weeks"
-  // "/ping"   -> "ping"
-  // "/week?weekId=..&person=.." -> "week" + keep query params
   const { op, query } = parseOpAndQuery(path);
 
-  // Candidate URL styles (try in this order)
   const candidates = [];
-
-  // 1) REST-ish: BASE + "/config" (only works if Worker supports path routing)
   candidates.push(joinUrl(base, `/${op}${query ? `?${query}` : ""}`));
-
-  // 2) GAS-ish: BASE + "?action=config"
   candidates.push(joinUrl(base, `?action=${encodeURIComponent(op)}${query ? `&${query}` : ""}`));
-
-  // 3) GAS-ish: BASE + "?route=config"
   candidates.push(joinUrl(base, `?route=${encodeURIComponent(op)}${query ? `&${query}` : ""}`));
-
-  // 4) GAS-ish: BASE + "?op=config"
   candidates.push(joinUrl(base, `?op=${encodeURIComponent(op)}${query ? `&${query}` : ""}`));
 
-  // Try each candidate until one works
   let lastErr = null;
 
   for (const url of candidates) {
@@ -505,17 +549,14 @@ async function smartRequest(method, path, body) {
         return await fetchJsonWithTimeout(url, { method: "GET" });
       }
 
-      // POST: try JSON first (good for Worker)
       try {
         return await fetchJsonWithTimeout(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body ?? {}),
         });
-      } catch (e1) {
-        // Fallback: urlencoded (often easiest for Apps Script doPost)
+      } catch {
         const form = new URLSearchParams();
-        // If backend uses action/route/op in POST bodies instead of query, include it too
         form.set("op", op);
         form.set("action", op);
         form.set("route", op);
@@ -529,18 +570,13 @@ async function smartRequest(method, path, body) {
       }
     } catch (err) {
       lastErr = err;
-      // keep trying next candidate
     }
   }
 
-  // If all candidates failed, show the last error with helpful info
-  throw new Error(
-    `All endpoint styles failed for op="${op}". Last error: ${lastErr?.message || lastErr}`
-  );
+  throw new Error(`All endpoint styles failed for op="${op}". Last error: ${lastErr?.message || lastErr}`);
 }
 
 function parseOpAndQuery(path) {
-  // path is like "/config" or "/week?weekId=1&person=Kyle"
   const clean = String(path || "").trim();
   const noLeading = clean.startsWith("/") ? clean.slice(1) : clean;
   const [rawOp, rawQuery] = noLeading.split("?");
@@ -550,7 +586,6 @@ function parseOpAndQuery(path) {
 }
 
 function joinUrl(base, suffix) {
-  // base might already have ?..., so just append if suffix starts with ?
   if (suffix.startsWith("?")) return base + suffix;
   return base.replace(/\/$/, "") + suffix;
 }
@@ -560,13 +595,8 @@ async function fetchJsonWithTimeout(url, init) {
   const t = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const res = await fetch(url, {
-      ...init,
-      signal: ctrl.signal,
-      cache: "no-store",
-    });
+    const res = await fetch(url, { ...init, signal: ctrl.signal, cache: "no-store" });
 
-    // If it’s a hard HTTP error, throw with body snippet
     if (!res.ok) {
       const text = await safeText(res);
       throw new Error(`${res.status} ${res.statusText}${text ? ` — ${text}` : ""} @ ${url}`);
@@ -575,15 +605,11 @@ async function fetchJsonWithTimeout(url, init) {
     const text = await res.text();
     if (!text) return null;
 
-    // Apps Script sometimes returns plain text; try JSON first
     try {
       return JSON.parse(text);
     } catch {
       return text;
     }
-  } catch (e) {
-    // Bubble up (caller tries next candidate)
-    throw e;
   } finally {
     clearTimeout(t);
   }
@@ -611,25 +637,20 @@ function readCache(key) {
  *  11) HELPERS / NORMALIZERS
  *  ========================= */
 function normalizeWeekDetails(details, weekId) {
-  // Accept multiple shapes
-  // preferred: { weekId, startDate, endDate, entries: [...] }
-  const out = {
+  return {
     weekId: details.weekId || weekId,
     startDate: details.startDate || details.start || details.weekStart || null,
     endDate: details.endDate || details.end || details.weekEnd || null,
-    entries: Array.isArray(details.entries) ? details.entries : (Array.isArray(details.data) ? details.data : []),
+    entries: Array.isArray(details.entries)
+      ? details.entries
+      : Array.isArray(details.data)
+      ? details.data
+      : [],
   };
-  return out;
 }
 
 function normalizeEntry(e) {
-  // Accept multiple shapes; normalize to { person, dateISO, category, miles, ts }
-  const dateISO =
-    e.dateISO ||
-    e.date ||
-    e.day ||
-    e.entryDate ||
-    null;
+  const dateISO = e.dateISO || e.date || e.day || e.entryDate || null;
 
   return {
     id: e.id || e.entryId || e.uuid || null,
@@ -646,16 +667,14 @@ function weekLabel(w) {
   const start = w.startDate ? new Date(w.startDate) : null;
   const end = w.endDate ? new Date(w.endDate) : null;
 
-  const wn = w.weekNum != null ? `W${w.weekNum}` : (w.weekId ? w.weekId : "Week");
+  const wn = w.weekNum != null ? `W${w.weekNum}` : w.weekId ? w.weekId : "Week";
   if (start && end) return `${wn} • ${formatShort(start)} – ${formatShort(end)}`;
   if (start) return `${wn} • ${formatShort(start)} – +6d`;
   return `${wn}`;
 }
 
 function buildWeekDays(startDate) {
-  // startDate expected ISO or Date-like; generate 7 ISO dates (YYYY-MM-DD)
   const start = new Date(startDate);
-  // normalize to local date by building YYYY-MM-DD from local components
   const days = [];
   const d0 = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   for (let i = 0; i < 7; i++) {
@@ -676,7 +695,6 @@ function dayLabel(isoDate) {
 function toISODate(input) {
   if (!input) return null;
   if (typeof input === "string") {
-    // If already YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
     const d = new Date(input);
     if (Number.isNaN(d.getTime())) return null;
@@ -685,37 +703,49 @@ function toISODate(input) {
   if (input instanceof Date) {
     return `${input.getFullYear()}-${pad2(input.getMonth() + 1)}-${pad2(input.getDate())}`;
   }
-  // fallback
   const d = new Date(input);
   if (Number.isNaN(d.getTime())) return null;
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-function pad2(n) { return String(n).padStart(2, "0"); }
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
 
 function formatShort(d) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function formatMiles(n) {
-  // 2 decimals max, but strip trailing zeros
   const s = (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
   return s.replace(/\.?0+$/, "");
 }
 
 function showSelect(skel, sel) {
-  if (skel) skel.style.display = "none";
-  if (sel) sel.style.display = "";
+  if (skel) {
+    skel.style.display = "none";
+    skel.style.pointerEvents = "none";
+  }
+  if (sel) {
+    sel.style.display = "";
+    sel.disabled = false;
+    sel.style.pointerEvents = "auto";
+    sel.style.position = "relative";
+    sel.style.zIndex = "2";
+  }
 }
 
 function setStatus(msg, isError = false) {
+  if (!els?.statusLine) return;
   els.statusLine.textContent = msg;
   els.statusLine.className = "status " + (isError ? "danger" : "");
 }
 
 function setNetPill(text, tone) {
+  if (!els?.netPill) return;
   els.netPill.textContent = text;
-  els.netPill.className = "pill " + (tone === "danger" ? "danger" : tone === "ok" ? "ok" : "muted");
+  els.netPill.className =
+    "pill " + (tone === "danger" ? "danger" : tone === "ok" ? "ok" : "muted");
 }
 
 function escapeHtml(s) {
@@ -728,15 +758,19 @@ function escapeHtml(s) {
 }
 
 async function safeText(res) {
-  try { return (await res.text()).slice(0, 200); } catch { return ""; }
+  try {
+    return (await res.text()).slice(0, 200);
+  } catch {
+    return "";
+  }
 }
 
 /** =========================
- *  12) WARM-UP PING  ✅ FIXED
+ *  12) WARM-UP PING (FIXED)
  *  =========================
- * - Must exist (no ReferenceError)
- * - Must never throw (cannot block init)
- * - Tries multiple endpoint styles (REST + GAS query params)
+ * - Must exist
+ * - Must never throw
+ * - Tries REST + GAS query styles
  */
 function warmUpPing() {
   try {
@@ -744,21 +778,17 @@ function warmUpPing() {
     if (!base) return;
 
     const baseNoSlash = base.replace(/\/$/, "");
-
-    // Try the same "compat" patterns you use elsewhere
     const urls = [
       `${baseNoSlash}/ping`,
       `${baseNoSlash}?action=ping`,
       `${baseNoSlash}?route=ping`,
       `${baseNoSlash}?op=ping`,
-      // Fallback: hit root to wake cold starts even if ping isn't implemented
       `${baseNoSlash}/`,
     ];
 
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 4000); // short warmup timeout
+    const t = setTimeout(() => ctrl.abort(), 4000);
 
-    // fire-and-forget; ignore failures
     Promise.race(
       urls.map((u) =>
         fetch(u, {
@@ -769,12 +799,14 @@ function warmUpPing() {
       )
     ).finally(() => clearTimeout(t));
   } catch {
-    // never throw from warmup
+    // never throw
   }
 }
 
-// Alias in case older call exists somewhere
-function warmupPing() { return warmUpPing(); }
+// Alias in case older call exists
+function warmupPing() {
+  return warmUpPing();
+}
 
 function cryptoRandom() {
   try {
