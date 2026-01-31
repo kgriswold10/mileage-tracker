@@ -182,15 +182,54 @@ document.head.appendChild(style);
  *  5) EVENTS
  *  ========================= */
 function wireEvents() {
-  // Defensive: ensure selects exist & are interactive
-  els.personSelect.disabled = false;
-  els.weekSelect.disabled = false;
-  els.daySelect.disabled = false;
+  console.log("wireEvents() attaching listeners", {
+    personEl: !!els.personSelect,
+    weekEl: !!els.weekSelect,
+    dayEl: !!els.daySelect,
+    categoryEl: !!els.categorySelect,
+  });
+
+  // Always-fire listeners (Safari-safe)
+  const dbg = (label, el) =>
+    console.log(label, {
+      id: el?.id,
+      value: el?.value,
+      options: el?.options?.length,
+      disabled: el?.disabled,
+    });
+
+  // PERSON
+  ["pointerdown", "focus", "click"].forEach((ev) =>
+    els.personSelect.addEventListener(ev, () => dbg(`person ${ev}`, els.personSelect))
+  );
+
+  // `input` fires on selection in many browsers; `change` fires when selection commits
+  els.personSelect.addEventListener("input", async () => {
+    try {
+      dbg("person input", els.personSelect);
+      state.selectedPerson = els.personSelect.value;
+
+      setStatus("Person changed — loading…");
+      setNetPill("Loading", "muted");
+
+      if (state.selectedWeekId) {
+        await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
+      }
+
+      setStatus("Ready.");
+      setNetPill("Ready", "ok");
+    } catch (e) {
+      console.error("person input failed", e);
+      setStatus(`Person change failed: ${e?.message || e}`, true);
+      setNetPill("Failed", "danger");
+    }
+  });
 
   els.personSelect.addEventListener("change", async () => {
+    // keep change too (some browsers only fire change)
     try {
+      dbg("person change", els.personSelect);
       state.selectedPerson = els.personSelect.value;
-      console.log("person change fired:", state.selectedPerson);
 
       setStatus("Person changed — loading…");
       setNetPill("Loading", "muted");
@@ -208,10 +247,38 @@ function wireEvents() {
     }
   });
 
+  // WEEK
+  ["pointerdown", "focus", "click"].forEach((ev) =>
+    els.weekSelect.addEventListener(ev, () => dbg(`week ${ev}`, els.weekSelect))
+  );
+
+  els.weekSelect.addEventListener("input", async () => {
+    try {
+      dbg("week input", els.weekSelect);
+      state.selectedWeekId = els.weekSelect.value;
+
+      setStatus("Week changed — loading…");
+      setNetPill("Loading", "muted");
+
+      syncDayDropdown();
+
+      if (state.selectedWeekId && state.selectedPerson) {
+        await loadWeekDetails(state.selectedWeekId, state.selectedPerson);
+      }
+
+      setStatus("Ready.");
+      setNetPill("Ready", "ok");
+    } catch (e) {
+      console.error("week input failed", e);
+      setStatus(`Week change failed: ${e?.message || e}`, true);
+      setNetPill("Failed", "danger");
+    }
+  });
+
   els.weekSelect.addEventListener("change", async () => {
     try {
+      dbg("week change", els.weekSelect);
       state.selectedWeekId = els.weekSelect.value;
-      console.log("week change fired:", state.selectedWeekId);
 
       setStatus("Week changed — loading…");
       setNetPill("Loading", "muted");
@@ -231,21 +298,27 @@ function wireEvents() {
     }
   });
 
+  // DAY
   els.daySelect.addEventListener("change", () => {
+    dbg("day change", els.daySelect);
     state.selectedDayISO = els.daySelect.value;
-    console.log("day change fired:", state.selectedDayISO);
     renderTotals();
   });
 
+  // CATEGORY
   els.categorySelect.addEventListener("change", () => {
+    dbg("category change", els.categorySelect);
     state.selectedCategory = els.categorySelect.value;
   });
 
+  // BUTTONS
   els.addBtn.addEventListener("click", async () => {
+    console.log("add clicked");
     await handleAddEntry();
   });
 
   els.refreshBtn.addEventListener("click", async () => {
+    console.log("refresh clicked");
     await loadFreshBootstrap(true);
     if (state.selectedWeekId && state.selectedPerson) {
       await loadWeekDetails(state.selectedWeekId, state.selectedPerson, true);
