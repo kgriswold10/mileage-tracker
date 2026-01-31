@@ -76,14 +76,7 @@ const state = {
 /** =========================
  *  0) BOOT
  *  ========================= */
-window.addEventListener("error", (ev) => {
-  console.error("Window error:", ev.error || ev.message);
-});
-window.addEventListener("unhandledrejection", (ev) => {
-  console.error("Unhandled rejection:", ev.reason);
-});
-
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   try {
     initEls();
 
@@ -101,16 +94,18 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
     document.head.appendChild(style);
 
-    init().catch((e) => {
-      console.error(e);
-      setStatus(`Load failed: ${e?.message || e}`, true);
-      setNetPill("Load failed", "danger");
-      // Always reveal selects even if init fails (lets user interact with cached UI)
-      forceRevealAllSelects();
-    });
+    // IMPORTANT: wait for init to finish before anything else touches cfg/state
+    await init();
+
+    // If you have defaults/render logic that currently runs at top-level,
+    // move it into init() or call it here after init:
+    // applyDefaults(); render();
+
   } catch (e) {
     console.error(e);
-    alert(e?.message || String(e));
+    setStatus(`Load failed: ${e?.message || e}`, true);
+    setNetPill("Load failed", "danger");
+    forceRevealAllSelects();
   }
 });
 
