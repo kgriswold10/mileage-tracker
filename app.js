@@ -1,10 +1,13 @@
 /* Mileage Tracker - Fast Load + Week->Day input + multi-entry/day cumulative
    FIXED: dropdowns always visible & selectable
-   - DOMContentLoaded boot (safe)
+   - DOMContentLoaded boot (await init)
    - Warm-up ping (safe)
    - Cache render + background refresh
    - IMPORTANT FIX: loadFreshBootstrap() now ALWAYS reveals dropdowns
      even when it returns early due to "fresh enough" cache.
+   - IMPORTANT FIX: defaults now run only after init + bootstrap
+   - IMPORTANT FIX: cfg is always normalized and never undefined
+   - IMPORTANT FIX: backend {ok:false,error:"..."} no longer breaks UI
 */
 
 /** =========================
@@ -22,6 +25,15 @@ const CACHE_KEYS = {
 
 const REQUEST_TIMEOUT_MS = 25000;
 const SOFT_REFRESH_AFTER_MS = 20_000;
+
+/** If nothing loads (no cache + API down), use these so UI is usable */
+const DEFAULT_CONFIG = {
+  year: new Date().getFullYear(),
+  annualGoal: 1000,
+  people: ["Mom", "Rob", "Kyle"],
+  categories: ["Walk", "Bike", "Other"],
+  apiKey: null,
+};
 
 /** =========================
  *  2) DOM (initialized after DOMContentLoaded)
@@ -96,15 +108,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // IMPORTANT: wait for init to finish before anything else touches cfg/state
     await init();
-
-    // If you have defaults/render logic that currently runs at top-level,
-    // move it into init() or call it here after init:
-    // applyDefaults(); render();
-
   } catch (e) {
     console.error(e);
     setStatus(`Load failed: ${e?.message || e}`, true);
     setNetPill("Load failed", "danger");
+    // Always reveal selects even if init fails (lets user interact with cached UI)
     forceRevealAllSelects();
   }
 });
@@ -141,19 +149,14 @@ async function init() {
     forceRevealAllSelects();
   }
 
+  // Fetch fresh config/weeks (or keep cache if API fails)
   await loadFreshBootstrap();
 
-  // Defaults
-  const cfg = normalizeConfig(state.config);
-  console.log("cfg =", cfg);
-  if (!state.selectedPerson && cfg.people.length) {
-    state.selectedPerson = cfg.people[0];
-    els.personSelect.value = state.selectedPerson;
-  }
-  if (!state.selectedWeekId && state.weeks?.length) {
-    state.selectedWeekId = state.weeks[0].weekId;
-    els.weekSelect.value = state.selectedWeekId;
-  }
+  // Ensure we have *some* config/weeks so dropdowns work even when offline
+  ensureFallbacksIfEmpty();
+
+  // Defaults (safe; uses normalized config)
+  applyDefaults();
 
   // Populate day dropdown based on selected week
   syncDayDropdown();
@@ -165,6 +168,50 @@ async function init() {
 
   setStatus("Ready.");
   setNetPill("Ready", "ok");
+}
+
+function ensureFallbacksIfEmpty() {
+  // Config fallback
+  const cfg = normalizeConfig(state.config);
+  if (!cfg.people.length || !cfg.categories.length) {
+    state.config = normalizeConfig(DEFAULT_CONFIG);
+    renderConfig(state.config);
+  } else {
+    state.config = cfg;
+  }
+
+  // Weeks fallback
+  if (!Array.isArray(state.weeks) || !state.weeks.length) {
+    const year = Number(state.config?.year) || new Date().getFullYear();
+    state.weeks = generateWeeksMonSun(year);
+    renderWeeks(state.weeks);
+  }
+}
+
+function applyDefaults() {
+  state.config = normalizeConfig(state.config);
+  const cfg = state.config;
+
+  if (!state.selectedPerson && cfg.people.length) {
+    state.selectedPerson = cfg.people[0];
+    els.personSelect.value = state.selectedPerson;
+  } else if (state.selectedPerson) {
+    els.personSelect.value = state.selectedPerson;
+  }
+
+  if (!state.selectedWeekId && state.weeks?.length) {
+    state.selectedWeekId = state.weeks[0].weekId;
+    els.weekSelect.value = state.selectedWeekId;
+  } else if (state.selectedWeekId) {
+    els.weekSelect.value = state.selectedWeekId;
+  }
+
+  if (!state.selectedCategory && cfg.categories.length) {
+    state.selectedCategory = cfg.categories[0];
+    els.categorySelect.value = state.selectedCategory;
+  } else if (state.selectedCategory) {
+    els.categorySelect.value = state.selectedCategory;
+  }
 }
 
 /** =========================
@@ -206,6 +253,9 @@ function wireEvents() {
 
   els.refreshBtn.addEventListener("click", async () => {
     await loadFreshBootstrap(true);
+    ensureFallbacksIfEmpty();
+    applyDefaults();
+    syncDayDropdown();
     if (state.selectedWeekId && state.selectedPerson) {
       await loadWeekDetails(state.selectedWeekId, state.selectedPerson, true);
     }
@@ -235,18 +285,27 @@ async function loadFreshBootstrap(force = false) {
 
   setStatus(force ? "Refreshing…" : "Refreshing (background)…");
 
-  const [config, weeks] = await Promise.all([apiGet("/config"), apiGet("/weeks")]);
+  try {
+    const [configRaw, weeksRaw] = await Promise.all([apiGet("/config"), apiGet("/weeks")]);
 
-  if (config) {
-    state.config = config;
-    writeCache(CACHE_KEYS.config, config);
-    renderConfig(config);
-  }
+    const config = unwrapOk(configRaw);
+    const weeks = unwrapOk(weeksRaw);
 
-  if (Array.isArray(weeks)) {
-    state.weeks = weeks;
-    writeCache(CACHE_KEYS.weeks, weeks);
-    renderWeeks(weeks);
+    if (config) {
+      state.config = config;
+      writeCache(CACHE_KEYS.config, config);
+      renderConfig(config);
+    }
+
+    if (Array.isArray(weeks)) {
+      state.weeks = weeks;
+      writeCache(CACHE_KEYS.weeks, weeks);
+      renderWeeks(weeks);
+    }
+  } catch (e) {
+    // If API fails, keep whatever cache we had and keep UI usable
+    setStatus(`Using cache (refresh failed): ${e?.message || e}`, true);
+    setNetPill("Cached", "ok");
   }
 
   forceRevealAllSelects();
@@ -272,9 +331,11 @@ async function loadWeekDetails(weekId, person, force = false) {
   }
 
   try {
-    const details = await apiGet(
+    const raw = await apiGet(
       `/week?weekId=${encodeURIComponent(weekId)}&person=${encodeURIComponent(person)}`
     );
+    const details = unwrapOk(raw);
+
     if (details) {
       state.weekDetails = normalizeWeekDetails(details, weekId);
       writeCache(cacheKey, state.weekDetails);
@@ -332,7 +393,8 @@ async function handleAddEntry() {
   els.milesInput.value = "";
 
   try {
-    await apiPost("/entry", entry);
+    const res = await apiPost("/entry", entry);
+    unwrapOk(res);
     await loadWeekDetails(weekId, person, true);
     setStatus("Entry added.");
     setNetPill("Synced", "ok");
@@ -364,8 +426,21 @@ function ensureWeekDetailsForOptimism(weekId) {
  *  ========================= */
 function normalizeConfig(cfg) {
   // Some backends return { config: {...}, weeks: [...] }
-  if (cfg && typeof cfg === "object" && cfg.config && typeof cfg.config === "object") return cfg.config;
-  return cfg || {};
+  let c = cfg;
+  if (c && typeof c === "object" && c.config && typeof c.config === "object") c = c.config;
+  c = (c && typeof c === "object") ? c : {};
+
+  const out = {
+    year: c.year ?? DEFAULT_CONFIG.year,
+    annualGoal: c.annualGoal ?? DEFAULT_CONFIG.annualGoal,
+    apiKey: c.apiKey ?? DEFAULT_CONFIG.apiKey,
+    people: Array.isArray(c.people) ? c.people : [],
+    categories: Array.isArray(c.categories) ? c.categories : [],
+  };
+
+  // If the object exists but arrays are missing, don't force defaults here;
+  // fallback logic handles it. But we *do* ensure arrays exist.
+  return out;
 }
 
 function setSelectOptions(selectEl, values, placeholder) {
@@ -524,6 +599,16 @@ async function apiPost(path, body) {
   return smartRequest("POST", path, body);
 }
 
+function unwrapOk(resp) {
+  // If backend returns {ok:false,error:"Unknown action"} etc, turn that into an exception
+  if (resp && typeof resp === "object" && "ok" in resp) {
+    if (resp.ok === false) throw new Error(resp.error || "Backend error");
+    // Some backends may return {ok:true, data: ...}
+    if ("data" in resp) return resp.data;
+  }
+  return resp;
+}
+
 async function smartRequest(method, path, body) {
   const base = (API_BASE_URL || "").trim();
   if (!base) throw new Error("API_BASE_URL not set");
@@ -531,7 +616,9 @@ async function smartRequest(method, path, body) {
   const { op, query } = parseOpAndQuery(path);
 
   const candidates = [];
+  // REST-style
   candidates.push(joinUrl(base, `/${op}${query ? `?${query}` : ""}`));
+  // Query-param styles
   candidates.push(joinUrl(base, `?action=${encodeURIComponent(op)}${query ? `&${query}` : ""}`));
   candidates.push(joinUrl(base, `?route=${encodeURIComponent(op)}${query ? `&${query}` : ""}`));
   candidates.push(joinUrl(base, `?op=${encodeURIComponent(op)}${query ? `&${query}` : ""}`));
@@ -544,6 +631,7 @@ async function smartRequest(method, path, body) {
         return await fetchJsonWithTimeout(url, { method: "GET" });
       }
 
+      // POST JSON first
       try {
         return await fetchJsonWithTimeout(url, {
           method: "POST",
@@ -551,6 +639,7 @@ async function smartRequest(method, path, body) {
           body: JSON.stringify(body ?? {}),
         });
       } catch {
+        // POST form fallback
         const form = new URLSearchParams();
         form.set("op", op);
         form.set("action", op);
@@ -807,4 +896,48 @@ function cryptoRandom() {
   } catch {
     return Math.random().toString(16).slice(2);
   }
+}
+
+/** =========================
+ *  13) WEEK GENERATOR (Mon–Sun)
+ *  ========================= */
+function generateWeeksMonSun(year) {
+  // Weeks are Mon–Sun. We generate week 1 as the Monday of the week that contains Jan 1.
+  // (So week 1 may start in the previous year, which is normal for week-style calendars.)
+  const jan1 = new Date(year, 0, 1);
+  const day = jan1.getDay(); // 0 Sun .. 6 Sat
+  const offsetToMon = (day === 0 ? -6 : 1 - day); // move back to Monday
+  const firstMon = new Date(year, 0, 1 + offsetToMon);
+
+  const weeks = [];
+  let cur = new Date(firstMon);
+
+  // Build weeks until we pass Dec 31 and have covered the last week containing it
+  const dec31 = new Date(year, 11, 31);
+
+  let i = 1;
+  while (true) {
+    const start = new Date(cur);
+    const end = new Date(cur);
+    end.setDate(end.getDate() + 6);
+
+    const weekId = `${year}-W${String(i).padStart(2, "0")}`;
+    weeks.push({
+      weekId,
+      weekNum: i,
+      startDate: toISODate(start),
+      endDate: toISODate(end),
+    });
+
+    // stop when the week end is after Dec 31 and the week start is after Dec 31 by >=7? no; simple break:
+    if (end >= dec31 && start.getFullYear() === year && start.getMonth() === 11 && start.getDate() > 24) {
+      break;
+    }
+    if (weeks.length > 54) break;
+
+    cur.setDate(cur.getDate() + 7);
+    i += 1;
+  }
+
+  return weeks;
 }
