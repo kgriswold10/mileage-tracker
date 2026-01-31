@@ -157,6 +157,20 @@ async function init() {
   setStatus("Ready.");
   setNetPill("Ready", "ok");
 }
+// Emergency CSS override: ensure selects are clickable
+const style = document.createElement("style");
+style.textContent = `
+  #personSelect, #weekSelect, #daySelect, #categorySelect {
+    pointer-events: auto !important;
+    position: relative !important;
+    z-index: 99999 !important;
+  }
+  #personSkeleton, #weekSkeleton, #daySkeleton {
+    display: none !important;
+    pointer-events: none !important;
+  }
+`;
+document.head.appendChild(style);
 
 /** =========================
  *  5) EVENTS
