@@ -5,6 +5,7 @@
    - AbortController timeouts to avoid hanging loads
 */
 console.log("NEW APP.JS LOADED 20260131_1");
+alert("NEW APP.JS LOADED 20260131_1");
 
 /** =========================
  *  1) CONFIG - SET THIS
